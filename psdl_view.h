@@ -7,7 +7,7 @@
 #include <gl\gl.h>
 #include <gl\glut.h>
 
-class PSDLView : public View<PSDL>
+class PSDLView : public View<psdl>
 {
 public:
 	void v(size_t iVert)
@@ -19,33 +19,33 @@ public:
 	{
 		for (size_t i = 0; i < m_pDoc->numBlocks(); i++)
 		{
-			PSDL::Block* block = m_pDoc->getBlock(i);
+			psdl::block* block = m_pDoc->get_block(i);
 
 			for (size_t j = 0; j < block->numAttributes(); j++)
 			{
-				PSDL::Attribute* atb = block->getAttribute(j);
+				psdl::attribute* atb = block->get_attribute(j);
 
-				switch (atb->type())
+				switch (atb->type)
 				{
 					case ATB_ROAD:
 						glColor3f(.5f, .5f, .5f);
 						{
-							PSDL::RoadStrip* road = static_cast<PSDL::RoadStrip*>(atb);
+							psdl::road_strip* road = static_cast<psdl::road_strip*>(atb);
 
-							for (size_t k = 0; k < road->numSections() - 1; k++)
+							for (size_t k = 0; k < road->num_sections() - 1; k++)
 							{
 								glBegin(GL_QUAD_STRIP);
-									v(road->vertexRefs[k * 4 + 0]);
-									v(road->vertexRefs[k * 4 + 4]);
+									v(road->get_vertex_ref(k * 4 + 0));
+									v(road->get_vertex_ref(k * 4 + 4));
 
-									v(road->vertexRefs[k * 4 + 1]);
-									v(road->vertexRefs[k * 4 + 5]);
+									v(road->get_vertex_ref(k * 4 + 1));
+									v(road->get_vertex_ref(k * 4 + 5));
 
-									v(road->vertexRefs[k * 4 + 2]);
-									v(road->vertexRefs[k * 4 + 6]);
+									v(road->get_vertex_ref(k * 4 + 2));
+									v(road->get_vertex_ref(k * 4 + 6));
 
-									v(road->vertexRefs[k * 4 + 3]);
-									v(road->vertexRefs[k * 4 + 7]);
+									v(road->get_vertex_ref(k * 4 + 3));
+									v(road->get_vertex_ref(k * 4 + 7));
 								glEnd();
 							}
 						}

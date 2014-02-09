@@ -8,7 +8,7 @@
 
 using namespace std;
 
-long PSDL::getBlockIndex(PSDL::Block *block)
+long psdl::getBlockIndex(psdl::block *block)
 {
 	for (long i = 0; i < m_aBlocks.size(); i++) {
 		if (&m_aBlocks[i] == block)
@@ -17,7 +17,7 @@ long PSDL::getBlockIndex(PSDL::Block *block)
 	return -1;
 }
 
-error::code PSDL::ReadFile(const char *pathname)
+error::code psdl::ReadFile(const char *pathname)
 {
 	unsigned long i, nSize;
 
@@ -34,11 +34,11 @@ error::code PSDL::ReadFile(const char *pathname)
 
 	f.read((char*) &nSize, 4);
 	ATLTRACE("Number of vertices: 0x%x\n", nSize);
-	Vertex vertex;
+	vertex vert;
 	for (i = 0; i < nSize; i++)
 	{
-		f.read((char*) &vertex, sizeof(vertex));
-		addVertex(vertex);
+		f.read((char*) &vert, sizeof(vertex));
+		addVertex(vert);
 	//	vertices.push_back(vertex);
 	//	vertexRefs.push_back(i);
 
@@ -83,7 +83,7 @@ error::code PSDL::ReadFile(const char *pathname)
 	ATLTRACE("Number of blocks: 0x%x\n", nSize);
 	for (i = 0; i < nSize; i++)
 	{
-		Block block;
+		block block;
 		unsigned long j, nPerimeterPoints, nAttributeSize;
 
 		f.read((char*) &nPerimeterPoints, 4);
@@ -93,9 +93,9 @@ error::code PSDL::ReadFile(const char *pathname)
 
 		for (j = 0; j < nPerimeterPoints; j++)
 		{
-			PerimeterPoint point;
+			perimeter_pt point;
 			f.read((char*) &point, sizeof(point));
-			block.addPerimeterPoint(point);
+			block.add_perimeter_point(point);
 		}
 
 		unsigned int nAttributes = 0;
@@ -104,13 +104,14 @@ error::code PSDL::ReadFile(const char *pathname)
 
 		while (f.tellg() < targetPos)
 		{
-			unsigned char id,/* last,*/ type, subtype;
+			unsigned char id, type, subtype;
+			bool last;
 
 			f.read((char*) &id, 2);
-									// --- Masks ---
-		//	last	= id >> 7 & 1;	// 1 =	00000001
-			type	= id >> 3 & 15;	// 15 =	00001111
-			subtype	= id & 7;
+			                            // --- Masks ---
+			last    = id >> 7 & 1 == 1; // 1 =	00000001
+			type    = id >> 3 & 15;     // 15 =	00001111
+			subtype = id & 7;
 
 			if (type > 0xc) // Attribute doesn't exist!
 			{
@@ -118,12 +119,12 @@ error::code PSDL::ReadFile(const char *pathname)
 				break; // Exit while loop
 			}
 
-			Attribute *atb;
+			attribute* atb = NULL;
 
 			switch (type)
 			{
 				case 0x0:
-					atb = new RoadStrip();
+					atb = new road_strip();
 					{
 						unsigned short k, nSections, vertexRef;
 
@@ -135,13 +136,13 @@ error::code PSDL::ReadFile(const char *pathname)
 						for (k = 0; k < 4 * nSections; k++)
 						{
 							f.read((char*) &vertexRef, 2);
-							static_cast<RoadStrip*>(atb)->addVertex(vertexRef);
+							static_cast<road_strip*>(atb)->add_vertex(vertexRef);
 						}
 					}
 					break;
 
 				case 0x1:
-					atb = new SidewalkStrip();
+					atb = new sidewalk_strip();
 					{
 						unsigned short k, nSections, vertexRef;
 
@@ -153,13 +154,13 @@ error::code PSDL::ReadFile(const char *pathname)
 						for (k = 0; k < 2 * nSections; k++)
 						{
 							f.read((char*) &vertexRef, 2);
-							static_cast<SidewalkStrip*>(atb)->addVertex(vertexRef);
+							static_cast<sidewalk_strip*>(atb)->add_vertex(vertexRef);
 						}
 					}
 					break;
 
 				case 0x2:
-					atb = new RectangleStrip();
+					atb = new rectangle_strip();
 					{
 						unsigned short k, nSections, vertexRef;
 
@@ -171,33 +172,33 @@ error::code PSDL::ReadFile(const char *pathname)
 						for (k = 0; k < 2 * nSections; k++)
 						{
 							f.read((char*) &vertexRef, 2);
-							static_cast<RectangleStrip*>(atb)->addVertex(vertexRef);
+							static_cast<rectangle_strip*>(atb)->add_vertex(vertexRef);
 						}
 					}
 					break;
 
 				case 0x3:
-					atb = new Sliver();
+					atb = new sliver();
 
-					f.read((char*) &static_cast<Sliver*>(atb)->top,				2);
-					f.read((char*) &static_cast<Sliver*>(atb)->textureScale,	2);
-					f.read((char*) &static_cast<Sliver*>(atb)->left,			2);
-					f.read((char*) &static_cast<Sliver*>(atb)->right,			2);
+					f.read((char*) &static_cast<sliver*>(atb)->top,       2);
+					f.read((char*) &static_cast<sliver*>(atb)->tex_scale, 2);
+					f.read((char*) &static_cast<sliver*>(atb)->left,      2);
+					f.read((char*) &static_cast<sliver*>(atb)->right,     2);
 					break;
 
 				case 0x4:
-					atb = new Crosswalk();
+					atb = new crosswalk();
 					{
 						unsigned short k;
 
 						for (k = 0; k < 4; k++) // always 4 vertices
 
-							f.read((char*) &static_cast<Crosswalk*>(atb)->vertexRefs[k], 2);
+							f.read((char*) &static_cast<crosswalk*>(atb)->i_vertices[k], 2);
 					}
 					break;
 
 				case 0x5:
-					atb = new RoadTriangleFan();
+					atb = new road_triangle_fan();
 					{
 						unsigned short k, nTriangles, vertexRef;
 
@@ -209,13 +210,13 @@ error::code PSDL::ReadFile(const char *pathname)
 						for (k = 0; k < nTriangles + 2; k++)
 						{
 							f.read((char*) &vertexRef, 2);
-							static_cast<RoadTriangleFan*>(atb)->addVertex(vertexRef);
+							static_cast<road_triangle_fan*>(atb)->add_vertex(vertexRef);
 						}
 					}
 					break;
 
 				case 0x6:
-					atb = new TriangleFan();
+					atb = new triangle_fan();
 					{
 						unsigned short k, nTriangles, vertexRef;
 
@@ -226,21 +227,21 @@ error::code PSDL::ReadFile(const char *pathname)
 
 						for (k = 0; k < nTriangles + 2; k++) {
 							f.read((char*) &vertexRef, 2);
-							static_cast<TriangleFan*>(atb)->addVertex(vertexRef);
+							static_cast<triangle_fan*>(atb)->add_vertex(vertexRef);
 						}
 					}
 					break;
 
 				case 0x7:
-					atb = new FacadeBound();
-					f.read((char*) &static_cast<FacadeBound*>(atb)->angle,	2);
-					f.read((char*) &static_cast<FacadeBound*>(atb)->top,	2);
-					f.read((char*) &static_cast<FacadeBound*>(atb)->left,	2);
-					f.read((char*) &static_cast<FacadeBound*>(atb)->right,	2);
+					atb = new facade_bound();
+					f.read((char*) &static_cast<facade_bound*>(atb)->angle,	2);
+					f.read((char*) &static_cast<facade_bound*>(atb)->top,	2);
+					f.read((char*) &static_cast<facade_bound*>(atb)->left,	2);
+					f.read((char*) &static_cast<facade_bound*>(atb)->right,	2);
 					break;
 
 				case 0x8:
-					atb = new DividedRoadStrip();
+					atb = new divided_road_strip();
 					{
 						unsigned short k, nSections, vertexRef;
 
@@ -249,13 +250,13 @@ error::code PSDL::ReadFile(const char *pathname)
 						else
 							f.read((char*) &nSections, 2);
 
-						f.read((char*) &static_cast<DividedRoadStrip*>(atb)->flags,		1);
-						f.read((char*) &static_cast<DividedRoadStrip*>(atb)->textureRef,	1);
-						f.read((char*) &static_cast<DividedRoadStrip*>(atb)->value,		2);
+						f.read((char*) &static_cast<divided_road_strip*>(atb)->flags,     1);
+						f.read((char*) &static_cast<divided_road_strip*>(atb)->i_texture, 1);
+						f.read((char*) &static_cast<divided_road_strip*>(atb)->value,     2);
 
 						for (k = 0; k < 6 * nSections; k++) {
 							f.read((char*) &vertexRef, 2);
-							static_cast<DividedRoadStrip*>(atb)->addVertex(vertexRef);
+							static_cast<divided_road_strip*>(atb)->add_vertex(vertexRef);
 						}
 					}
 					break;
@@ -264,56 +265,56 @@ error::code PSDL::ReadFile(const char *pathname)
 					{
 						if (subtype) // subtype 2 = banktest.psdl !!
 						{
-							atb = new Tunnel();
+							atb = new tunnel();
 
-							f.read((char*) &static_cast<Tunnel*>(atb)->flags,	2);
-							f.read((char*) &static_cast<Tunnel*>(atb)->height1,	2);
+							f.read((char*) &static_cast<tunnel*>(atb)->flags,	2);
+							f.read((char*) &static_cast<tunnel*>(atb)->height1,	2);
 
 							if (subtype > 2)
-								f.read((char*) &static_cast<Tunnel*>(atb)->height2, 2);
+								f.read((char*) &static_cast<tunnel*>(atb)->height2, 2);
 						}
 						else
 						{
-							atb = new Junction();
+							atb = new junction();
 							unsigned short k, nLength;
-							unsigned char bState;
+							bool bState;
 
 							f.read((char*) &nLength,								2);
-							f.read((char*) &static_cast<Junction*>(atb)->flags,		2);
-							f.read((char*) &static_cast<Junction*>(atb)->height1,	2);
-							f.read((char*) &static_cast<Junction*>(atb)->height2,	2);
-							f.read((char*) &static_cast<Junction*>(atb)->unknown3,	2);
+							f.read((char*) &static_cast<junction*>(atb)->flags,		2);
+							f.read((char*) &static_cast<junction*>(atb)->height1,	2);
+							f.read((char*) &static_cast<junction*>(atb)->height2,	2);
+							f.read((char*) &static_cast<junction*>(atb)->unknown3,	2);
 
 							for (k = 0; k < 2 * (nLength - 4); k++)
 							{
 								f.read((char*) &bState, 1);
-								static_cast<Junction*>(atb)->addWall(bState);
+								static_cast<junction*>(atb)->add_wall(bState);
 							}
 						}
 					}
 					break;
 
 				case 0xa:
-					atb = new Texture();
+					atb = new texture();
 					{
 						unsigned short textureRef;
 						f.read((char*) &textureRef, 2);
-						static_cast<Texture*>(atb)->textureRef = textureRef + (256 * subtype) - 1;
+						static_cast<texture*>(atb)->i_texture = textureRef + (256 * subtype) - 1;
 					}
 					break;
 
 				case 0xb:
-					atb = new Facade();
-					f.read((char*) &static_cast<Facade*>(atb)->bottom,	2);
-					f.read((char*) &static_cast<Facade*>(atb)->top,		2);
-					f.read((char*) &static_cast<Facade*>(atb)->uRepeat,	2);
-					f.read((char*) &static_cast<Facade*>(atb)->vRepeat,	2);
-					f.read((char*) &static_cast<Facade*>(atb)->left,	2);
-					f.read((char*) &static_cast<Facade*>(atb)->right,	2);
+					atb = new facade();
+					f.read((char*) &static_cast<facade*>(atb)->bottom,   2);
+					f.read((char*) &static_cast<facade*>(atb)->top,      2);
+					f.read((char*) &static_cast<facade*>(atb)->u_repeat, 2);
+					f.read((char*) &static_cast<facade*>(atb)->v_repeat, 2);
+					f.read((char*) &static_cast<facade*>(atb)->left,     2);
+					f.read((char*) &static_cast<facade*>(atb)->right,    2);
 					break;
 
 				case 0xc: // Roof triangle fan
-					atb = new RoofTriangleFan();
+					atb = new roof_triangle_fan();
 					{
 						unsigned short k, nVertices, vertexRef;
 
@@ -322,22 +323,27 @@ error::code PSDL::ReadFile(const char *pathname)
 						else
 							f.read((char*) &nVertices, 2);
 
-						f.read((char*) &static_cast<RoofTriangleFan*>(atb)->heightRef, 2);
+						f.read((char*) &static_cast<roof_triangle_fan*>(atb)->i_height, 2);
 
 						for (k = 0; k < nVertices + 1; k++) {
 							f.read((char*) &vertexRef, 2);
-							static_cast<RoofTriangleFan*>(atb)->addVertex(vertexRef);
+							static_cast<roof_triangle_fan*>(atb)->add_vertex(vertexRef);
 						}
 					}
 					break;
 			}
 
-			atb->id = id;
-			block.addAttribute(atb);
-			nAttributes++;
+			if (atb)
+			{
+				atb->last    = last;
+				atb->type    = type;
+				atb->subtype = subtype;
+				block.add_attribute(atb);
+				nAttributes++;
+			}
 		}
 
-		addBlock(block);
+		add_block(block);
 	//	ATLTRACE("Block %x: done!\n", i);
 		if (i == 0x487)
 			ATLTRACE("Block %x: %x attributes\n", i, nAttributes);
@@ -365,9 +371,9 @@ error::code PSDL::ReadFile(const char *pathname)
 		m_aBlocks[i].setPropRule(bProp);
 	}
 
-	f.read((char*) &m_vMin,		sizeof(Vertex));
-	f.read((char*) &m_vMax,		sizeof(Vertex));
-	f.read((char*) &m_vCenter,	sizeof(Vertex));
+	f.read((char*) &m_vMin,		sizeof(vertex));
+	f.read((char*) &m_vMax,		sizeof(vertex));
+	f.read((char*) &m_vCenter,	sizeof(vertex));
 	f.read((char*) &m_fRadius,	4);
 
 	unsigned char l;
@@ -429,7 +435,7 @@ error::code PSDL::ReadFile(const char *pathname)
 	return error::ok;
 }
 
-bool PSDL::WriteFile(const char *pathname)
+bool psdl::WriteFile(const char *pathname)
 {
 /*	unsigned long i = 0, nSize = 0;
 
@@ -498,7 +504,7 @@ bool PSDL::WriteFile(const char *pathname)
 
 		for (j = 0; j < nPerimeterPoints; j++)
 		{
-			PerimeterPoint point = *block->getPerimeterPoint(j);
+			perimeter_pt point = *block->getPerimeterPoint(j);
 			fwrite(&point, sizeof(point));
 		}
 
@@ -681,19 +687,19 @@ bool PSDL::WriteFile(const char *pathname)
 	return 1;
 }
 
-PSDL::Attribute *PSDL::Block::getAttribute(unsigned long nIndex)
+psdl::attribute *psdl::block::get_attribute(unsigned long nIndex)
 {
 	if (nIndex < m_attributes.size())
 		return m_attributes[nIndex];
 	return 0;
 }
 
-unsigned char PSDL::Block::getType(void)
+unsigned char psdl::block::getType(void)
 {
 	return m_bType;
 }
 
-void PSDL::Block::setType(unsigned char bType)
+void psdl::block::setType(unsigned char bType)
 {
 	m_bType = bType;
 

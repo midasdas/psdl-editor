@@ -57,17 +57,17 @@ public:
 		UpdateLayout();
 	}
 
-	void SetAttribute(PSDL::Attribute *atb)
+	void SetAttribute(psdl::attribute* atb)
 	{
 		m_atb = atb;
 
 		if (m_atb)
-			SetView(m_atb->type());
+			SetView(m_atb->type);
 		else
 			SetView(-1);
 	}
 
-	PSDL::Attribute* GetAttribute(void)
+	psdl::attribute* GetAttribute(void)
 	{
 		return m_atb;
 	}
@@ -80,15 +80,12 @@ public:
 
 private:
 
-	PSDL::Attribute *m_atb;
+	psdl::attribute* m_atb;
 	CPropView *m_view;
 };
 
 class CAttributesWindow : public CWindowImpl<CAttributesWindow>
 {
-	CMyListBox m_list;
-//	PSDL::Block *m_block;
-
 	BEGIN_MSG_MAP(CAttributesWindow)
 		COMMAND_HANDLER(IDC_LIST, LBN_SELCHANGE, OnSelChange);
 		MESSAGE_HANDLER(WM_CREATE, OnCreate)
@@ -97,7 +94,7 @@ class CAttributesWindow : public CWindowImpl<CAttributesWindow>
 		NOTIFY_CODE_HANDLER(NM_SETFOCUS, OnSetFocus)
 	END_MSG_MAP()
 
-	void SetBlock(PSDL::Block *block);
+	void SetBlock(psdl::block *block);
 
 	LRESULT OnSelChange(WORD, WORD, HWND hWnd, BOOL&);
 	LRESULT OnSetFocus(int idCtrl, LPNMHDR pnmh, BOOL& bHandled);
@@ -121,6 +118,11 @@ class CAttributesWindow : public CWindowImpl<CAttributesWindow>
 	{
 		return 0;
 	}
+
+private:
+
+	CMyListBox m_list;
+	psdl::block* m_pBlock;
 };
 
 class CBlocksWindow : public CWindowImpl<CBlocksWindow>
@@ -131,7 +133,7 @@ class CBlocksWindow : public CWindowImpl<CBlocksWindow>
 		MESSAGE_HANDLER(WM_SIZE, OnSize)
 	END_MSG_MAP()
 
-	void InsertBlock(PSDL::Block *pBlock, int nPos = -1)
+	void InsertBlock(psdl::block* pBlock, int nPos = -1)
 	{
 		int nID;
 		CString sText, sType;
@@ -154,7 +156,7 @@ class CBlocksWindow : public CWindowImpl<CBlocksWindow>
 		m_list.InsertString(nPos, sText + sType);
 	}
 
-	void SetPSDL(PSDL *psdl) {
+	void SetPSDL(psdl* psdl) {
 //		m_psdl = psdl;
 
 		CString sText, sType;
@@ -163,7 +165,7 @@ class CBlocksWindow : public CWindowImpl<CBlocksWindow>
 		m_list.ResetContent();
 		for (size_t i = 0; i < psdl->numBlocks(); i++)
 		{
-			InsertBlock(psdl->getBlock(i), -1);
+			InsertBlock(psdl->get_block(i), -1);
 		}
 		m_list.SetRedraw();
 	}
@@ -230,9 +232,5 @@ class CToolbox : public CFrameWindowImpl<CToolbox>
 			return 1;
 		}
 };
-/*
-extern CPropertiesWindow	g_properties;
-extern CAttributesWindow	g_attributes;
-extern CBlocksWindow		g_blocks;
-*/
+
 #endif

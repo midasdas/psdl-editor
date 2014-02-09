@@ -100,7 +100,8 @@ public:
 	LRESULT OnAppAbout				(WORD, WORD, HWND, BOOL&);
 
 	void SetEditingMode(int iMode);
-	void SelectBlock(int iIndex);
+	void SelectBlock(long iIndex);
+	void SelectAttribute(psdl::block* pBlock, long iIndex);
 
 	// HistoryManager
 	CString GetUndoDescription(void);

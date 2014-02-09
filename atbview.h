@@ -80,7 +80,7 @@ class CRoadView :
 			CHAIN_MSG_MAP(CDialogResize<CRoadView>)
 		END_MSG_MAP()
 
-		CRoadView(PSDL::Attribute *pAtb)
+		CRoadView(psdl::attribute *pAtb)
 		{
 			m_atb = pAtb;
 		}
@@ -89,7 +89,7 @@ class CRoadView :
 
 	private:
 		CMyListBox		m_list;
-		PSDL::Attribute *m_atb;
+		psdl::attribute* m_atb;
 };
 
 class CTextureView :
@@ -113,7 +113,7 @@ class CTextureView :
 			CHAIN_MSG_MAP(CDialogResize<CTextureView>)
 		END_MSG_MAP()
 
-		CTextureView(PSDL::Attribute *pAtb)
+		CTextureView(psdl::attribute* pAtb)
 		{
 			m_atb = pAtb;
 		}
@@ -121,7 +121,7 @@ class CTextureView :
 		LRESULT OnInitDialog(UINT, WPARAM, LPARAM, BOOL&);
 
 	private:
-		PSDL::Attribute *m_atb;
+		psdl::attribute *m_atb;
 		CString m_textureName;
 
 };
@@ -145,9 +145,9 @@ class CTunnelView :
 			CHAIN_MSG_MAP(CDialogResize<CTunnelView>)
 		END_MSG_MAP()
 
-		CTunnelView(PSDL::Attribute *pAtb)
+		CTunnelView(psdl::attribute *pAtb)
 		{
-			m_atb = static_cast<PSDL::Tunnel*>(pAtb);
+			m_atb = static_cast<psdl::tunnel*>(pAtb);
 		}
 
 		void SetState(WORD wID, bool bState)
@@ -178,7 +178,7 @@ class CTunnelView :
 				default: return 0;
 			}
 
-			m_atb->setFlag(nBit, BST_CHECKED == ::SendMessage(GetDlgItem(wID), BM_GETCHECK, 0, 0));
+			m_atb->set_flag(nBit, BST_CHECKED == ::SendMessage(GetDlgItem(wID), BM_GETCHECK, 0, 0));
 
 			return 0;
 		}
@@ -187,7 +187,7 @@ class CTunnelView :
 		{
 			if (wNotifyCode == BN_CLICKED)
 			{
-				m_atb->setFlag(BIT_STYLE, BST_CHECKED == ::SendMessage(GetDlgItem(IDC_WALL), BM_GETCHECK, 0, 0));
+				m_atb->set_flag(BIT_STYLE, BST_CHECKED == ::SendMessage(GetDlgItem(IDC_WALL), BM_GETCHECK, 0, 0));
 			}
 			return 0;
 		}
@@ -196,21 +196,21 @@ class CTunnelView :
 		{
 			SetRedraw(FALSE);
 
-			SetState(IDC_RAILING,		!m_atb->getFlag(BIT_STYLE));
-			SetState(IDC_WALL,			m_atb->getFlag(BIT_STYLE));
-			SetState(IDC_LEFT,			m_atb->getFlag(BIT_LEFT));
-			SetState(IDC_RIGHT,			m_atb->getFlag(BIT_RIGHT));
-			SetState(IDC_CLOSEDSTART_L,	m_atb->getFlag(BIT_CLOSEDSTART_L));
-			SetState(IDC_CLOSEDEND_L,	m_atb->getFlag(BIT_CLOSEDEND_L));
-			SetState(IDC_CLOSEDSTART_R,	m_atb->getFlag(BIT_CLOSEDSTART_R));
-			SetState(IDC_CLOSEDEND_R,	m_atb->getFlag(BIT_CLOSEDEND_R));
-			SetState(IDC_OFFSETSTART_L,	m_atb->getFlag(BIT_OFFSETSTART_L));
-			SetState(IDC_OFFSETEND_L,	m_atb->getFlag(BIT_OFFSETEND_L));
-			SetState(IDC_OFFSETSTART_R,	m_atb->getFlag(BIT_OFFSETSTART_R));
-			SetState(IDC_OFFSETEND_R,	m_atb->getFlag(BIT_OFFSETEND_R));
-			SetState(IDC_CURVEDWALL,	m_atb->getFlag(BIT_CURVEDSIDES));
-			SetState(IDC_FLAT,			m_atb->getFlag(BIT_CULLED));
-			SetState(IDC_CURVED,		m_atb->getFlag(BIT_CURVEDCEILING));
+			SetState(IDC_RAILING,		!m_atb->get_flag(BIT_STYLE));
+			SetState(IDC_WALL,			m_atb->get_flag(BIT_STYLE));
+			SetState(IDC_LEFT,			m_atb->get_flag(BIT_LEFT));
+			SetState(IDC_RIGHT,			m_atb->get_flag(BIT_RIGHT));
+			SetState(IDC_CLOSEDSTART_L,	m_atb->get_flag(BIT_CLOSEDSTART_L));
+			SetState(IDC_CLOSEDEND_L,	m_atb->get_flag(BIT_CLOSEDEND_L));
+			SetState(IDC_CLOSEDSTART_R,	m_atb->get_flag(BIT_CLOSEDSTART_R));
+			SetState(IDC_CLOSEDEND_R,	m_atb->get_flag(BIT_CLOSEDEND_R));
+			SetState(IDC_OFFSETSTART_L,	m_atb->get_flag(BIT_OFFSETSTART_L));
+			SetState(IDC_OFFSETEND_L,	m_atb->get_flag(BIT_OFFSETEND_L));
+			SetState(IDC_OFFSETSTART_R,	m_atb->get_flag(BIT_OFFSETSTART_R));
+			SetState(IDC_OFFSETEND_R,	m_atb->get_flag(BIT_OFFSETEND_R));
+			SetState(IDC_CURVEDWALL,	m_atb->get_flag(BIT_CURVEDSIDES));
+			SetState(IDC_FLAT,			m_atb->get_flag(BIT_CULLED));
+			SetState(IDC_CURVED,		m_atb->get_flag(BIT_CURVEDCEILING));
 
 			SetRedraw();
 
@@ -220,7 +220,7 @@ class CTunnelView :
 
 	private:
 
-		PSDL::Tunnel *m_atb;
+		psdl::tunnel* m_atb;
 };
 
 #endif

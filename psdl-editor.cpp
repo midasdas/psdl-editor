@@ -5,9 +5,6 @@
 CAppModule _Module;
 GlobalOptions g_options;
 
-//PSDL		*g_psdl;
-PSDL::Block	*g_block;
-
 CMainFrame* g_wndMain;
 
 int Run(LPTSTR = NULL, int nCmdShow = SW_SHOWDEFAULT)

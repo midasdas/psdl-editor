@@ -13,11 +13,11 @@ LRESULT CRoadView::OnInitDialog(UINT, WPARAM, LPARAM, BOOL&)
 	m_list.SetTabStops(20);
 
 	CString sText;
-	PSDL::RoadStrip *atb = static_cast<PSDL::RoadStrip*>(m_atb);
-	for (size_t i = 0; i < atb->numVertices(); i++)
+	psdl::road_strip *atb = static_cast<psdl::road_strip*>(m_atb);
+	for (size_t i = 0; i < atb->num_vertices(); i++)
 	{
 	//	sText.Format("%x\t", i);
-		sText.Format("%x\t[%04x]\t", i, atb->getVertexRef(i));
+		sText.Format("%x\t[%04x]\t", i, atb->get_vertex_ref(i));
 	//	sText += VertexString(g_psdl->getVertex(atb->getVertexRef(i)));
 		m_list.AddString(sText);
 	}
@@ -29,7 +29,7 @@ LRESULT CRoadView::OnInitDialog(UINT, WPARAM, LPARAM, BOOL&)
 
 LRESULT CTextureView::OnInitDialog(UINT, WPARAM, LPARAM, BOOL&)
 {
-	unsigned short nIndex = static_cast<PSDL::Texture*>(m_atb)->textureRef;
+	unsigned short nIndex = static_cast<psdl::texture*>(m_atb)->i_texture;
 
 //	m_textureName.Format("0x%x: %s", nIndex, g_psdl->getTextureName(nIndex));
 

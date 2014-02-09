@@ -172,9 +172,14 @@ LRESULT CMainFrame::OnViewBar(WORD, WORD wID, HWND, BOOL&)
 	return 0;
 }
 
-void CMainFrame::SelectBlock(int iIndex)
+void CMainFrame::SelectBlock(long iIndex)
 {
 	m_psdlDoc.SelectBlock(iIndex);
+}
+
+void CMainFrame::SelectAttribute(psdl::block* pBlock, long iIndex)
+{
+	m_wndProps.SetAttribute(pBlock->get_attribute(iIndex));
 }
 
 void CMainFrame::SetEditingMode(int iMode)
@@ -210,7 +215,7 @@ LRESULT CMainFrame::OnSetEditingMode(WORD, WORD wID, HWND, BOOL&)
 LRESULT CMainFrame::OnInsertBlock(WORD, WORD wID, HWND, BOOL&)
 {
 	unsigned int nInsert = m_wndBlocks.list()->GetCaretIndex();
-	PSDL::Block block;
+	psdl::block block;
 
 //	block.addPerimeterPoint(0);
 
@@ -232,7 +237,7 @@ LRESULT CMainFrame::OnDuplicateBlock(WORD, WORD wID, HWND, BOOL&)
 		m_wndBlocks.list()->GetSelItems(nBlocks, aBlockIDs);
 
 		// Experiment, should be removed
-		Vertex vOffset = { 1220.0787f, -20.2605f, -870.612f };
+		psdl::vertex vOffset = { 1220.0787f, -20.2605f, -870.612f };
 
 		vector<vertexMap> aDuplicates;
 
@@ -240,8 +245,8 @@ LRESULT CMainFrame::OnDuplicateBlock(WORD, WORD wID, HWND, BOOL&)
 		{
 			unsigned long nIndex = aBlockIDs[it];
 
-			PSDL::Block* origBlock = m_psdlDoc.GetBlock(nIndex);
-			PSDL::Block* block = new PSDL::Block(*origBlock);
+			psdl::block* origBlock = m_psdlDoc.GetBlock(nIndex);
+			psdl::block* block = new psdl::block(*origBlock);
 
 			// Duplicate the vertices in the PSDL used by the block's attributes
 			if (g_duplicateProps.bVertices)
@@ -250,7 +255,7 @@ LRESULT CMainFrame::OnDuplicateBlock(WORD, WORD wID, HWND, BOOL&)
 
 				for (k = 0; k < block->numPerimeterPoints(); k++)
 				{
-					unsigned short nVertexRef = block->getPerimeterPoint(k)->vertex;
+					unsigned short nVertexRef = block->get_perimeter_point(k)->vertex;
 
 					block->setPerimeterPoint(
 						k, m_psdlDoc.CopyVertex(&aDuplicates, nVertexRef, vOffset), 0
@@ -261,11 +266,11 @@ LRESULT CMainFrame::OnDuplicateBlock(WORD, WORD wID, HWND, BOOL&)
 
 				for (size_t i = 0; i < block->numAttributes(); i++)
 				{
-					block->m_attributes[i] = origBlock->getAttribute(i)->clone();
-					PSDL::Attribute* atb = block->getAttribute(i);
+					block->m_attributes[i] = origBlock->get_attribute(i)->clone();
+					psdl::attribute* atb = block->get_attribute(i);
 					j++;
 
-					unsigned char type = atb->type();
+					unsigned char type = atb->type;
 					switch (type)
 					{
 						case ATB_ROAD:
@@ -275,11 +280,11 @@ LRESULT CMainFrame::OnDuplicateBlock(WORD, WORD wID, HWND, BOOL&)
 						case ATB_TRIANGLEFAN:
 						case ATB_DIVIDEDROAD:
 						case ATB_ROOFTRIANGLEFAN:
-							for (k = 0; k < static_cast<PSDL::RoadStrip*>(atb)->numVertices(); k++)
+							for (k = 0; k < static_cast<psdl::road_strip*>(atb)->num_vertices(); k++)
 							{
-								unsigned short nVertexRef = static_cast<PSDL::RoadStrip*>(atb)->getVertexRef(k);
+								unsigned short nVertexRef = static_cast<psdl::road_strip*>(atb)->get_vertex_ref(k);
 
-								static_cast<PSDL::RoadStrip*>(atb)->setVertexRef(
+								static_cast<psdl::road_strip*>(atb)->set_vertex_ref(
 									k, m_psdlDoc.CopyVertex(&aDuplicates, nVertexRef, vOffset)
 								);
 							}
@@ -288,9 +293,9 @@ LRESULT CMainFrame::OnDuplicateBlock(WORD, WORD wID, HWND, BOOL&)
 						case ATB_CROSSWALK:
 							for (k = 0; k < 4; k++)
 							{
-								unsigned short nVertexRef = static_cast<PSDL::Crosswalk*>(atb)->getVertexRef(k);
+								unsigned short nVertexRef = static_cast<psdl::crosswalk*>(atb)->get_vertex_ref(k);
 
-								static_cast<PSDL::Crosswalk*>(atb)->setVertexRef(
+								static_cast<psdl::crosswalk*>(atb)->set_vertex_ref(
 									k, m_psdlDoc.CopyVertex(&aDuplicates, nVertexRef, vOffset)
 								);
 							}
@@ -337,16 +342,16 @@ LRESULT CMainFrame::OnOptimizePSDL(WORD, WORD wID, HWND, BOOL&)
 			for (size_t i = 0; i < g_psdl->numBlocks(); i++)
 			{
 				unsigned short nTexRef, nLastTexRef = 0;
-				PSDL::Block *block = g_psdl->getBlock(i);
+				psdl::block *block = g_psdl->getBlock(i);
 
-				vector<PSDL::Attribute*>::iterator it = block->m_attributes.begin();
+				vector<psdl::Attribute*>::iterator it = block->m_attributes.begin();
 
 				while (it != block->m_attributes.end())
 				{
 					switch ((*it)->type())
 					{
 						case ATB_TEXTURE:
-							nTexRef = static_cast<PSDL::Texture*>(*it)->textureRef;
+							nTexRef = static_cast<psdl::Texture*>(*it)->textureRef;
 
 							if (nLastTexRef == nTexRef)
 							{
@@ -376,7 +381,7 @@ LRESULT CMainFrame::OnOptimizePSDL(WORD, WORD wID, HWND, BOOL&)
 /*				if (g_optimizeProps.bTextures)
 				{
 					unsigned char nMin = 0, nMax = 0;
-					PSDL::Texture *lastTex = NULL;
+					psdl::Texture *lastTex = NULL;
 
 					it = block->m_attributes.begin();
 
@@ -425,7 +430,7 @@ LRESULT CMainFrame::OnOptimizePSDL(WORD, WORD wID, HWND, BOOL&)
 
 						if ((*it)->type() == ATB_TEXTURE)
 						{
-							lastTex = static_cast<PSDL::Texture*>(*it);
+							lastTex = static_cast<psdl::Texture*>(*it);
 						}
 
 						++it;
@@ -445,8 +450,8 @@ LRESULT CMainFrame::OnOptimizePSDL(WORD, WORD wID, HWND, BOOL&)
 			vector<vertexMap> textureMap;
 			vector<vertexMap>::iterator it;
 			vector<char*> newTexList;
-			PSDL::Attribute *atb;
-			PSDL::Texture *tex = 0;
+			psdl::Attribute *atb;
+			psdl::Texture *tex = 0;
 
 			atb = g_psdl->nextAttribute(ATB_DIVIDEDROAD, tex, 0);
 			do

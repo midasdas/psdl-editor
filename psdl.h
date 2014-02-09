@@ -2,6 +2,8 @@
 #define __PSDL_H__
 
 #include "io_error.h"
+
+#include <fstream>
 #include <vector>
 
 #define BIT_UNKNOWN1		0x01 // 00000001
@@ -44,310 +46,354 @@
 #define BIT_CULLED			0xe // disables outer faces if railings are used
 #define BIT_UNKNOWN			0xf // probably unused
 
-typedef struct
-{
-	float x, y, z;
-}
-Vertex;
-
-class PSDL
+class psdl
 {
 public:
 
 	typedef struct
 	{
-		unsigned short	vertex,
-						block;
+		float x, y, z;
 	}
-	PerimeterPoint;
+	vertex;
 
-	class Attribute
+	typedef struct
 	{
-		bool enabled;
+		unsigned short vertex;
+		unsigned short block;
+	}
+	perimeter_pt;
 
-		protected:
-			void enable(void)	{ enabled = true;		}
-			void disable(void)	{ enabled = false;		}
-			void toggle(void)	{ enabled = !enabled;	}
-
+	class attribute
+	{
 		public:
-			Attribute() : enabled(true) {}
-			virtual ~Attribute() {}
-			virtual Attribute* clone(void) { return new Attribute(*this); }
 
-			unsigned char id;
-			unsigned char type(void)	{ return id >> 3 & 15;	}
-			unsigned char subtype(void)	{ return id & 7;		}
-			bool hasLastFlag(void)		{ return id >> 7 & 1;	}
-			void setLastFlag(void)		{ id |= 1 << 7;			}
+			attribute() : enabled(true) { }
+			virtual ~attribute() { }
+
+			virtual attribute* clone(void) {
+				return new attribute(*this);
+			}
+
+			unsigned char type, subtype;
+			bool last, enabled;
 	};
 
-	class VertexBased : public Attribute
+	class vertex_based : public attribute
 	{
 		public:
-			void addVertex(void) {
-				vertexRefs.push_back(0);
-			}
-			void addVertex(unsigned short vertexRef) {
-				vertexRefs.push_back(vertexRef);
-			}
-			void insertVertex(unsigned short pos) {
-				vertexRefs.insert(vertexRefs.begin() + pos, 0);			
-			}
-			unsigned short getVertexRef(unsigned short id) {
-				return vertexRefs[id];
-			}
-			void setVertexRef(size_t nIndex, unsigned short nValue) {
-				vertexRefs[nIndex] = nValue;
-			}
-			size_t numVertices(void) {
-				return vertexRefs.size();
-			}
-			virtual void writeToFile(FILE *f)
+
+			void insert_vertex(unsigned short i_vertex, unsigned short i_pos)
 			{
-				for (unsigned short k = 0; k < numVertices(); k++)
-				{
-					fwrite(&vertexRefs[k], sizeof(short), 1, f);
-				}
+				_i_vertices.insert(_i_vertices.begin() + i_pos, i_vertex);		
+			}
+			void add_vertex(unsigned short i_vertex)
+			{
+				_i_vertices.push_back(i_vertex);
+			}
+			unsigned short get_vertex_ref(unsigned short i_pos)
+			{
+				return _i_vertices[i_pos];
+			}
+			void set_vertex_ref(unsigned short i_pos, unsigned short i_vertex)
+			{
+				_i_vertices[i_pos] = i_vertex;
+			}
+			unsigned short num_vertices(void)
+			{
+				return _i_vertices.size();
 			}
 
-			std::vector<unsigned short> vertexRefs;
+			virtual void f_write(std::ofstream& f)
+			{
+				for (unsigned short i = 0; i < num_vertices(); i++)
+					f.write((char*) &_i_vertices[i], 2);
+			}
+
+		private:
+
+			std::vector<unsigned short> _i_vertices;
 	};
 
-	class FacadeBase : public Attribute
+	class facade_base : public attribute
 	{
 		public:
-			unsigned short top;		// index in the height list
-			unsigned short left;	// index in the vertex list
-			unsigned short right;	// index in the vertex list
+
+			unsigned short top;   // index in the height list
+			unsigned short left;  // index in the vertex list
+			unsigned short right; // index in the vertex list
 	};
 
 // 0x0
-	class RoadStrip : public VertexBased
+	class road_strip : public vertex_based
 	{
 		public:
-			size_t numSections(void) {
-				return numVertices() / 4;
-			}
 
-			void writeToFile(FILE *f)
+			// conversion to attribute class
+			operator attribute() { return attribute(); }
+
+			unsigned short num_sections(void)
 			{
-				if (!subtype())
-				{
-					unsigned short nSections = numSections();
-					fwrite(&nSections, sizeof(short), 1, f);
-				}
-				VertexBased::writeToFile(f);
+				return num_vertices() / 4;
 			}
 
-			Attribute* clone(void) { return new RoadStrip(*this); }
+			void f_write(std::ofstream& f)
+			{
+				if (!subtype)
+				{
+					unsigned short n_sections = num_sections();
+					f.write((char*) &n_sections, 2);
+				}
+
+				vertex_based::f_write(f);
+			}
 	};
+
 // 0x1
-	class SidewalkStrip : public VertexBased
+	class sidewalk_strip : public vertex_based
 	{
 		public:
-			size_t numSections(void) {
-				return numVertices() / 2;
-			}
 
-			void writeToFile(FILE *f)
+			// conversion to attribute class
+			operator attribute() { return attribute(); }
+
+			unsigned short num_sections(void)
 			{
-				if (!subtype())
-				{
-					unsigned short nSections = numSections();
-					fwrite(&nSections, sizeof(short), 1, f);
-				}
-				VertexBased::writeToFile(f);
+				return num_vertices() / 2;
 			}
 
-			Attribute* clone(void) { return new SidewalkStrip(*this); }
+			void f_write(std::ofstream& f)
+			{
+				if (!subtype)
+				{
+					unsigned short n_sections = num_sections();
+					f.write((char*) &n_sections, 2);
+				}
+
+				vertex_based::f_write(f);
+			}
 	};
+
 // 0x2
-	class RectangleStrip : public SidewalkStrip {};
+	typedef sidewalk_strip rectangle_strip;
+
 // 0x3
-	class Sliver : public FacadeBase
+	class sliver : public facade_base
 	{
 		public:
-			unsigned short textureScale; // value for uniformly scaling the texture
 
-			Attribute* clone(void) { return new Sliver(*this); }
+			// conversion to attribute class
+			operator attribute() { return attribute(); }
+
+			unsigned short tex_scale; // value for uniformly scaling the texture
 	};
+
 // 0x4
-	class Crosswalk : public Attribute
+	class crosswalk : public attribute
 	{
 		public:
-			unsigned short getVertexRef(unsigned char id) {
-				return vertexRefs[id];
-			}
-			void setVertexRef(unsigned char nIndex, unsigned short nValue) {
-				vertexRefs[nIndex] = nValue;
-			}
 
-			unsigned short vertexRefs[4];
+			// conversion to attribute class
+			operator attribute() { return attribute(); }
 
-			Attribute* clone(void) { return new Crosswalk(*this); }
-	};
-// 0x5
-	class RoadTriangleFan : public VertexBased
-	{
-		public:
-			size_t numTriangles(void) {
-				return numVertices() - 2;
-			}
-
-			void writeToFile(FILE *f)
+			unsigned short get_vertex_ref(unsigned char i_pos)
 			{
-				if (!subtype())
-				{
-					unsigned short nTriangles = numTriangles();
-					fwrite(&nTriangles, sizeof(short), 1, f);
-				}
-				VertexBased::writeToFile(f);
+				return i_vertices[i_pos];
+			}
+			void set_vertex_ref(unsigned char i_pos, unsigned short i_vertex)
+			{
+				i_vertices[i_pos] = i_vertex;
 			}
 
-			Attribute* clone(void) { return new RoadTriangleFan(*this); }
+			unsigned short i_vertices[4];
 	};
-// 0x6
-	class TriangleFan : public RoadTriangleFan {};
-// 0x7
-	class FacadeBound : public FacadeBase
+
+// 0x5
+	class road_triangle_fan : public vertex_based
 	{
 		public:
-			unsigned short angle;
 
-			Attribute* clone(void) { return new FacadeBound(*this); }
+			// conversion to attribute class
+			operator attribute() { return attribute(); }
+
+			unsigned short num_triangles(void)
+			{
+				return num_vertices() - 2;
+			}
+
+			void f_write(std::ofstream& f)
+			{
+				if (!subtype)
+				{
+					unsigned short n_triangles = num_triangles();
+					f.write((char*) &n_triangles, 2);
+				}
+
+				vertex_based::f_write(f);
+			}
+	};
+
+// 0x6
+	typedef road_triangle_fan triangle_fan;
+
+// 0x7
+	class facade_bound : public facade_base
+	{
+		public:
+
+			// conversion to attribute class
+			operator attribute() { return attribute(); }
+
+			unsigned short angle;
 	};
 // 0x8
-	class DividedRoadStrip : public VertexBased
+	class divided_road_strip : public vertex_based
 	{
 		public:
-			size_t numSections(void) {
-				return numVertices() / 6;
+
+			// conversion to attribute class
+			operator attribute() { return attribute(); }
+
+			unsigned short num_sections(void)
+			{
+				return num_vertices() / 6;
 			}
 
-			void writeToFile(FILE *f)
+			void f_write(std::ofstream& f)
 			{
-				if (!subtype())
+				if (!subtype)
 				{
-					unsigned short nSections = numSections();
-					fwrite(&nSections, sizeof(short), 1, f);
+					unsigned short n_sections = num_sections();
+					f.write((char*) &n_sections, 2);
 				}
 
-				fwrite(&flags,		sizeof(char), 1, f);
-				fwrite(&textureRef,	sizeof(char), 1, f);
-				fwrite(&value,		sizeof(short), 1, f);
+				f.write((char*) &flags,     1);
+				f.write((char*) &i_texture, 1);
+				f.write((char*) &value,     2);
 
-				VertexBased::writeToFile(f);
+				vertex_based::f_write(f);
 			}
 
-			unsigned char	flags;
-			unsigned char	dividerType;
-			unsigned char	textureRef;
-			unsigned short	value; // usage depends on the divider type
-
-			Attribute* clone(void) { return new DividedRoadStrip(*this); }
+			unsigned char  flags;
+		//	unsigned char  divider_type;
+			unsigned char  i_texture;
+			unsigned short value; // usage depends on the divider type
 	};
+
 // 0x9
-	class Tunnel : public Attribute
+	class tunnel : public attribute
 	{
 		public:
-			bool getFlag(unsigned char nID)
+
+			// conversion to attribute class
+			operator attribute() { return attribute(); }
+
+			bool get_flag(unsigned char flag_id)
 			{
-				return (flags >> nID) & 1;
+				return (flags >> flag_id) & 1;
 			}
-			void setFlag(unsigned char nID, bool bState)
+			void set_flag(unsigned char flag_id, bool state)
 			{
-				flags &= ~(1 << nID);
-				flags |= bState << nID;
+				flags &= ~(1 << flag_id);
+				flags |= state << flag_id;
 			}
 
-			unsigned short	flags,
-							height1,
-							height2;
-
-			Attribute* clone(void) { return new Tunnel(*this); }
+			unsigned short flags;
+			unsigned short height1;
+			unsigned short height2;
 	};
-	class Junction : public Tunnel
+
+	class junction : public tunnel
 	{
-		std::vector<unsigned char> enabledWalls;
-
 		public:
-			unsigned short	unknown3;
 
-			void addWall(unsigned char bState)
+			void add_wall(bool enable = true)
 			{
-				enabledWalls.push_back(bState);
+				_enabled_walls.push_back(enable);
 			}
-			unsigned char getWall(unsigned long nIndex)
+			unsigned char get_wall(unsigned long i_pos)
 			{
-				return enabledWalls[nIndex];
+				return _enabled_walls[i_pos];
 			}
-			size_t numWalls(void)
+			size_t num_walls(void)
 			{
-				return enabledWalls.size();
+				return _enabled_walls.size();
 			}
 
-			Attribute* clone(void) { return new Junction(*this); }
+			unsigned short unknown3;
+
+		private:
+
+			std::vector<bool> _enabled_walls;
 	};
+
 // 0xa
-	class Texture : public Attribute
+	class texture : public attribute
 	{
 		public:
-			unsigned short textureRef;
 
-			Attribute* clone(void) { return new Texture(*this); }
+			// conversion to attribute class
+			operator attribute() { return attribute(); }
+
+			unsigned short i_texture;
 	};
+
 // 0xb
-	class Facade : public FacadeBase
+	class facade : public facade_base
 	{
 		public:
-			unsigned short bottom;	// index in the height list
-			unsigned short uRepeat; // number of times to repeat the texture along its u-axis
-			unsigned short vRepeat; // number of times to repeat the texture along its v-axis
 
-			Attribute* clone(void) { return new Facade(*this); }
+			// conversion to attribute class
+			operator attribute() { return attribute(); }
+
+			unsigned short bottom;   // index in the height list
+			unsigned short u_repeat; // number of times to repeat the texture along its u-axis
+			unsigned short v_repeat; // number of times to repeat the texture along its v-axis
 	};
+
 // 0xc
-	class RoofTriangleFan : public VertexBased
+	class roof_triangle_fan : public vertex_based
 	{
 		public:
-			void writeToFile(FILE *f)
+
+			// conversion to attribute class
+			operator attribute() { return attribute(); }
+
+			void f_write(std::ofstream& f)
 			{
-				unsigned short nVertices = numVertices() - 1;
+				if (!subtype)
+				{
+					unsigned short n_vertices = num_vertices() - 1;
+					f.write((char*) &n_vertices, 2);
+				}
 
-				if (!subtype())
-					fwrite(&nVertices, sizeof(short), 1, f);
+				f.write((char*) &i_height, 2);
 
-				fwrite(&heightRef, sizeof(short), 1, f);
-
-				VertexBased::writeToFile(f);
+				vertex_based::f_write(f);
 			}
 
-			unsigned short heightRef;
-
-			Attribute* clone(void) { return new RoofTriangleFan(*this); }
+			unsigned short i_height;
 	};
 
-	class Block
+	class block
 	{
-		std::vector<PerimeterPoint>	m_perimeter;
+		std::vector<perimeter_pt>	m_perimeter;
 		unsigned char				m_bType, m_bPropRule;
 		unsigned short				m_nAttributeSize;
 	//	PSDL						*m_owner;
 
 		public:
-			std::vector<Attribute*>	m_attributes;
+			std::vector<attribute*>	m_attributes;
 
-/*			Block(PSDL *owner, unsigned char bType)
+/*			block(PSDL *owner, unsigned char bType)
 			: m_owner(owner), m_bType(bType) {}
 
-			Block(PSDL *owner)
+			block(PSDL *owner)
 				: m_owner(owner), m_bType(0) {}
 */
-			Block(unsigned char bType = BIT_PLAIN, unsigned char bPropRule = 0)
+			block(unsigned char bType = BIT_PLAIN, unsigned char bPropRule = 0)
 				: m_bType(bType), m_bPropRule(bPropRule), m_nAttributeSize(0) {}
 
-			Attribute *getAttribute(unsigned long nIndex);
+			attribute* get_attribute(unsigned long i_pos);
 			unsigned char getType(void);
 			void setType(unsigned char bType);
 
@@ -361,21 +407,21 @@ public:
 				m_bPropRule = bRule;
 			}
 
-			void addPerimeterPoint(PerimeterPoint point)
+			void add_perimeter_point(perimeter_pt pp)
 			{
-				m_perimeter.push_back(point);
+				m_perimeter.push_back(pp);
 			}
 
-			void addPerimeterPoint(unsigned short nVertexRef)
+			void add_perimeter_point(unsigned short i_vertex)
 			{
-				PerimeterPoint pp = { nVertexRef, 0 };
-				m_perimeter.push_back(pp);
+				perimeter_pt pp = { i_vertex, 0 };
+				add_perimeter_point(pp);
 			}
 
 			void addPerimeterRange(unsigned short nVertexRef, long nOffset)
 			{
-				PerimeterPoint pp = { 0, 0 };
-				
+				perimeter_pt pp = { 0, 0 };
+
 				for (unsigned short i = nVertexRef; i --> nVertexRef + nOffset;)
 				{
 					pp.vertex = i;
@@ -383,9 +429,9 @@ public:
 				}
 			}
 
-			PerimeterPoint *getPerimeterPoint(unsigned long nIndex)
+			perimeter_pt* get_perimeter_point(unsigned long i_pos)
 			{
-				return &m_perimeter[nIndex];
+				return &m_perimeter[i_pos];
 			}
 
 			void setPerimeterPoint(size_t nIndex, unsigned short nVertexRef, long nBlockID)
@@ -401,9 +447,9 @@ public:
 				m_perimeter.clear();
 			}
 
-			void addAttribute(Attribute *attribute)
+			void add_attribute(attribute *atb)
 			{
-				m_attributes.push_back(attribute);
+				m_attributes.push_back(atb);
 			}
 
 			void setAttributeSize(long nSize)
@@ -447,7 +493,7 @@ public:
 	error::code ReadFile(const char *pathname);
 	bool WriteFile(const char *pathname);
 
-	size_t addBlock(Block block)
+	size_t add_block(block block)
 	{
 		size_t index = m_aBlocks.size();
 		m_aBlocks.push_back(block);
@@ -458,7 +504,7 @@ public:
 		return index;
 	}
 
-	void insertBlock(Block block, unsigned int nPos)
+	void insert_block(block block, unsigned int nPos)
 	{
 	/*	for (std::vector<unsigned long>::iterator it = m_aBlockRefs.begin() + nPos;
 			it != m_aBlockRefs.end(); ++it)
@@ -470,8 +516,8 @@ public:
 		{
 			for (size_t j = 0; j < m_aBlocks[i].numPerimeterPoints(); j++)
 			{
-				if (m_aBlocks[i].getPerimeterPoint(j)->block >= nPos)
-					m_aBlocks[i].getPerimeterPoint(j)->block++;
+				if (m_aBlocks[i].get_perimeter_point(j)->block >= nPos)
+					m_aBlocks[i].get_perimeter_point(j)->block++;
 			}
 		}
 
@@ -479,10 +525,10 @@ public:
 	//	m_aBlockRefs.push_back(nPos);
 	}
 
-	size_t addVertex(Vertex vertex)
+	size_t addVertex(vertex v)
 	{
 		size_t index = m_aVertices.size();
-		m_aVertices.push_back(vertex);
+		m_aVertices.push_back(v);
 
 		m_aVertexRefs.push_back(index);
 		index = m_aVertexRefs.size() - 1;
@@ -495,12 +541,12 @@ public:
 		return m_aBlockRefs[nRef];
 	}
 
-	Block *getRefferedBlock(unsigned long nRef)
+	block *getRefferedBlock(unsigned long nRef)
 	{
 		return &m_aBlocks[m_aBlockRefs[nRef]];
 	}
 
-	Block *getBlock(unsigned long nIndex)
+	block *get_block(unsigned long nIndex)
 	{
 		if (nIndex < m_aBlocks.size())
 			return &m_aBlocks[nIndex];
@@ -512,9 +558,9 @@ public:
 		return &m_aBlockPaths[nIndex];
 	}
 
-	long getBlockIndex(Block *block);
+	long getBlockIndex(block *block);
 
-	Vertex getVertex(unsigned long nIndex)
+	vertex getVertex(unsigned long nIndex)
 	{
 		return m_aVertices[m_aVertexRefs[nIndex]];
 	}
@@ -531,10 +577,10 @@ public:
 		return m_aBlocks.size();
 	}
 
-	Attribute *nextAttribute(unsigned char yType, Texture *textureRef, long nStartBlock = -1)
+	attribute* next_attribute(unsigned char yType, texture *textureRef, long nStartBlock = -1)
 	{
 		static size_t s_nBlock = 0, s_nAtb = 0;
-		Block *block = 0;
+		block *block = 0;
 
 		if (nStartBlock >= 0)
 		{
@@ -542,30 +588,30 @@ public:
 			s_nAtb = 0;
 		}
 
-		block = getBlock(s_nBlock);
+		block = get_block(s_nBlock);
 
 		while (block)
 		{
-			Attribute *atb = block->getAttribute(s_nAtb);
+			attribute *atb = block->get_attribute(s_nAtb);
 
 			while (atb)
 			{
-				if (atb->type() == yType)
+				if (atb->type == yType)
 					return atb;
-				else if (atb->type() == ATB_TEXTURE)
-					textureRef = static_cast<Texture*>(atb);
+				else if (atb->type == ATB_TEXTURE)
+					textureRef = static_cast<texture*>(atb);
 
-				atb = block->getAttribute(s_nAtb++);
+				atb = block->get_attribute(s_nAtb++);
 			}
 
-			block = getBlock(s_nBlock++);
+			block = get_block(s_nBlock++);
 			s_nAtb = 0;
 		}
 
 		return 0;
 	}
 
-	size_t numVertices(void)	{ return m_aVertices.size(); }
+	size_t num_vertices(void)	{ return m_aVertices.size(); }
 
 	void addTexture(char *sName)
 	{
@@ -573,7 +619,7 @@ public:
 	}
 
 	std::vector<char*>			m_aTextures;
-	std::vector<Block>			m_aBlocks;
+	std::vector<block>			m_aBlocks;
 
 private:
 	void addBlockPath(BlockPath *path)
@@ -595,7 +641,7 @@ private:
 	size_t numTextures(void)	{ return m_aTextures.size();	}
 	size_t numBlockPaths(void)	{ return m_aBlockPaths.size();	}
 
-	std::vector<Vertex>			m_aVertices;
+	std::vector<vertex>			m_aVertices;
 	std::vector<unsigned long>	m_aVertexRefs;
 
 	std::vector<float>			m_aHeights;
@@ -608,10 +654,10 @@ private:
 
 	unsigned long m_lUnknown0;
 
-	Vertex m_vMin;
-	Vertex m_vMax;
-	Vertex m_vCenter;
-	Vertex m_fRadius;
+	vertex m_vMin;
+	vertex m_vMax;
+	vertex m_vCenter;
+	vertex m_fRadius;
 };
 
 #endif

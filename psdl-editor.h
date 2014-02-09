@@ -35,9 +35,6 @@ struct GlobalOptions
 
 extern GlobalOptions g_options;
 
-//extern PSDL			*g_psdl;
-extern PSDL::Block	*g_block;
-
 extern CMainFrame* g_wndMain;
 
 #endif

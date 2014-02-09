@@ -15,11 +15,11 @@ typedef struct
 }
 vertexMap;
 
-class PSDLDocTemplate : public DocTemplate<PSDL, PSDLView>
+class PSDLDocTemplate : public DocTemplate<psdl, PSDLView>
 {
 private:
 
-	typedef DocTemplate<PSDL, PSDLView> baseClass;
+	typedef DocTemplate<psdl, PSDLView> baseClass;
 
 	CBlocksWindow*		m_pBlocksWindow;
 	CAttributesWindow*	m_pAttribsWindow;
@@ -55,41 +55,41 @@ public:
 
 	// --- Document Operations ---
 
-	void InsertBlock(PSDL::Block block, unsigned int nPos)
+	void InsertBlock(psdl::block block, unsigned int nPos)
 	{
-		m_pDoc->insertBlock(block, nPos);
+		m_pDoc->insert_block(block, nPos);
 		m_pBlocksWindow->InsertBlock(&block, nPos);
 	}
 
-	void AddBlock(PSDL::Block block)
+	void AddBlock(psdl::block block)
 	{
-		m_pDoc->addBlock(block);
+		m_pDoc->add_block(block);
 		m_pBlocksWindow->InsertBlock(&block);
 	}
 
-	PSDL::Block* GetBlock(unsigned long iIndex)
+	psdl::block* GetBlock(unsigned long iIndex)
 	{
-		return m_pDoc->getBlock(iIndex);
+		return m_pDoc->get_block(iIndex);
 	}
 
 	// --- View Operations ---
 
-	void SelectBlock(int iIndex)
+	void SelectBlock(long iIndex)
 	{
-		m_pAttribsWindow->SetBlock(m_pDoc->getBlock(iIndex));
+		m_pAttribsWindow->SetBlock(m_pDoc->get_block(iIndex));
 	}
 
 	// --- Static Functions ---
 
 	// Do these belong here?
 
-	void RotateVertex(Vertex *vTarget, Vertex vOrigin, double dAngle)
+	void RotateVertex(psdl::vertex *vTarget, psdl::vertex vOrigin, double dAngle)
 	{
 		vTarget->x = vOrigin.x + (vTarget->x - vOrigin.x) * cos(dAngle) - (vTarget->z - vOrigin.z) * sin(dAngle);
 		vTarget->z = vOrigin.z + (vTarget->x - vOrigin.x) * sin(dAngle) + (vTarget->z - vOrigin.z) * cos(dAngle);
 	}
 
-	unsigned short CopyVertex(std::vector<vertexMap>* aLookup, unsigned short nFrom, Vertex vOffset)
+	unsigned short CopyVertex(std::vector<vertexMap>* aLookup, unsigned short nFrom, psdl::vertex vOffset)
 	{
 		long nTo = -1;
 
@@ -103,9 +103,9 @@ public:
 
 		if (nTo < 0)
 		{
-			Vertex vCopy = m_pDoc->getVertex(nFrom);
+			psdl::vertex vCopy = m_pDoc->getVertex(nFrom);
 
-			Vertex vFixed = { -940.3245f, 0, 1349.235f };
+			psdl::vertex vFixed = { -940.3245f, 0, 1349.235f };
 			RotateVertex(&vCopy, vFixed, PI);
 
 			vCopy.x += vOffset.x;

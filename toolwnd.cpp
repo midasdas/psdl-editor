@@ -4,32 +4,28 @@
 #include "strings.h"
 #include "psdl.h"
 
-CPropertiesWindow	g_properties;
-CAttributesWindow	g_attributes;
-CBlocksWindow		g_blocks;
-
-void CAttributesWindow::SetBlock(PSDL::Block *block)
+void CAttributesWindow::SetBlock(psdl::block* pBlock)
 {
-	g_block = block;
+	m_pBlock = pBlock;
 
 	m_list.ResetContent();
 
-	if (!block) return;
+	if (!m_pBlock) return;
 
 	CString sText;
 
 	m_list.SetRedraw(FALSE);
-	for (size_t i = 0; i < block->numAttributes(); i++)
+	for (size_t i = 0; i < m_pBlock->numAttributes(); i++)
 	{
 		sText.Format("%x\t", i);
-		m_list.AddString(sText + AttributeString(block->getAttribute(i)));
+		m_list.AddString(sText + AttributeString(m_pBlock->get_attribute(i)));
 	}
 	m_list.SetRedraw();
 }
 
 LRESULT CAttributesWindow::OnSelChange(WORD, WORD, HWND hWnd, BOOL&)
 {
-	g_properties.SetAttribute(g_block->getAttribute(m_list.GetCaretIndex()));
+	g_wndMain->SelectAttribute(m_pBlock, m_list.GetCaretIndex());
 	return 0;
 }
 

@@ -3,7 +3,7 @@
 
 #include "psdl.h"
 
-CString AttributeString(PSDL::Attribute *pAtb);
-CString VertexString(Vertex vertex);
+CString AttributeString(psdl::attribute *pAtb);
+CString VertexString(psdl::vertex v);
 
 #endif
