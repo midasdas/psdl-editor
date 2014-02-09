@@ -5,6 +5,15 @@
 #include "psdl.h"
 #include "psdl_view.h"
 #include "toolwnd.h"
+#include "tools.h"
+
+#include <math.h>
+
+typedef struct
+{
+	unsigned short from, to;
+}
+vertexMap;
 
 class PSDLDocTemplate : public DocTemplate<PSDL, PSDLView>
 {
@@ -52,11 +61,65 @@ public:
 		m_pBlocksWindow->InsertBlock(&block, nPos);
 	}
 
+	void AddBlock(PSDL::Block block)
+	{
+		m_pDoc->addBlock(block);
+		m_pBlocksWindow->InsertBlock(&block);
+	}
+
+	PSDL::Block* GetBlock(unsigned long iIndex)
+	{
+		return m_pDoc->getBlock(iIndex);
+	}
+
 	// --- View Operations ---
 
 	void SelectBlock(int iIndex)
 	{
 		m_pAttribsWindow->SetBlock(m_pDoc->getBlock(iIndex));
+	}
+
+	// --- Static Functions ---
+
+	// Do these belong here?
+
+	void RotateVertex(Vertex *vTarget, Vertex vOrigin, double dAngle)
+	{
+		vTarget->x = vOrigin.x + (vTarget->x - vOrigin.x) * cos(dAngle) - (vTarget->z - vOrigin.z) * sin(dAngle);
+		vTarget->z = vOrigin.z + (vTarget->x - vOrigin.x) * sin(dAngle) + (vTarget->z - vOrigin.z) * cos(dAngle);
+	}
+
+	unsigned short CopyVertex(std::vector<vertexMap>* aLookup, unsigned short nFrom, Vertex vOffset)
+	{
+		long nTo = -1;
+
+		for (size_t i = 0; i < aLookup->size(); i++)
+		{
+			if ((*aLookup)[i].from == nFrom)
+			{
+				nTo = (*aLookup)[i].to;
+			}
+		}
+
+		if (nTo < 0)
+		{
+			Vertex vCopy = m_pDoc->getVertex(nFrom);
+
+			Vertex vFixed = { -940.3245f, 0, 1349.235f };
+			RotateVertex(&vCopy, vFixed, PI);
+
+			vCopy.x += vOffset.x;
+			vCopy.y += vOffset.y;
+			vCopy.z += vOffset.z;
+
+			nTo = m_pDoc->addVertex(vCopy);
+
+			vertexMap newMap = { nFrom, nTo };
+
+			aLookup->push_back(newMap);
+		}
+
+		return nTo;
 	}
 };
 

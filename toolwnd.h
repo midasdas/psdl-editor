@@ -131,7 +131,7 @@ class CBlocksWindow : public CWindowImpl<CBlocksWindow>
 		MESSAGE_HANDLER(WM_SIZE, OnSize)
 	END_MSG_MAP()
 
-	void InsertBlock(PSDL::Block *pBlock, int nPos)
+	void InsertBlock(PSDL::Block *pBlock, int nPos = -1)
 	{
 		int nID;
 		CString sText, sType;
@@ -230,9 +230,9 @@ class CToolbox : public CFrameWindowImpl<CToolbox>
 			return 1;
 		}
 };
-
+/*
 extern CPropertiesWindow	g_properties;
 extern CAttributesWindow	g_attributes;
 extern CBlocksWindow		g_blocks;
-
+*/
 #endif

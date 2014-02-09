@@ -17,7 +17,6 @@
 	#define IDS_INFO			7003
 
 #define IDR_MAINFRAME		128
-#define IDR_CHILDFRAME		129
 
 #define IDR_TOOLBOX			130
 #define IDR_PROPVIEW		131

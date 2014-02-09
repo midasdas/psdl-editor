@@ -6,8 +6,6 @@
 
 #include <iostream>
 
-#define PI 3.14159265359
-
 #define DEFAULT_MM2_DIR "%PROGRAMFILES%\\Microsoft Games\\Midtown Madness 2"
 #define DEFAULT_MM2_EXE DEFAULT_MM2_DIR "\\Midtown2.exe"
 

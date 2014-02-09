@@ -17,7 +17,7 @@ using namespace std;
 BOOL CMainFrame::PreTranslateMessage(MSG* pMsg)
 {
 	// Process tab key
-	if (g_properties.IsDialogMessage(pMsg))
+	if (m_wndProps.IsDialogMessage(pMsg))
 		return TRUE;
 
 	if (CFrameWindowImpl<CMainFrame>::PreTranslateMessage(pMsg))
@@ -36,9 +36,9 @@ BOOL CMainFrame::OnIdle()
 	UIEnable(ID_EDIT_UNDO, CanUndo());
 	UIEnable(ID_EDIT_REDO, CanRedo());
 
-	UISetCheck(ID_WINDOWS_CITYBLOCKS,	::IsWindowVisible(g_blocks));
-	UISetCheck(ID_WINDOWS_ATTRIBUTES,	::IsWindowVisible(g_attributes));
-	UISetCheck(ID_WINDOWS_PROPERTIES,	::IsWindowVisible(g_properties));
+	UISetCheck(ID_WINDOWS_CITYBLOCKS,	::IsWindowVisible(m_wndBlocks));
+	UISetCheck(ID_WINDOWS_ATTRIBUTES,	::IsWindowVisible(m_wndAttribs));
+	UISetCheck(ID_WINDOWS_PROPERTIES,	::IsWindowVisible(m_wndProps));
 
 	return FALSE;
 }
@@ -51,8 +51,6 @@ LRESULT CMainFrame::OnDestroy(UINT, WPARAM, LPARAM, BOOL& bHandled)
 
 LRESULT CMainFrame::OnCreate(UINT, WPARAM, LPARAM, BOOL&)
 {
-//	AddDocTemplate(&m_psdlDocTmp);
-
 	CreateSimpleToolBar();
 	CToolBarCtrl tool = m_hWndToolBar;
 	tool.SetStyle(tool.GetStyle() | TBSTYLE_FLAT);
@@ -71,29 +69,27 @@ LRESULT CMainFrame::OnCreate(UINT, WPARAM, LPARAM, BOOL&)
 
 	m_hWndClient = m_view.Create(m_hWnd, rcDefault, NULL, WS_CHILD | WS_VISIBLE, WS_EX_CLIENTEDGE);
 
-//	g_psdl = new PSDL();
-
 	// Initiate docking framework
 	HWND hwndDock = m_dock.Create(m_hWnd, rcDefault);
 	m_dock.SetClient(m_hWndClient);
 
-	g_properties.Create(m_hWnd,	rcDefault, _T("Attribute Properties"),	ATL_SIMPLE_DOCKVIEW_STYLE);
-	g_attributes.Create(m_hWnd,	rcDefault, _T("Block Attributes"),		ATL_SIMPLE_DOCKVIEW_STYLE);
-	g_blocks.Create(m_hWnd,		rcDefault, _T("City Blocks"),			ATL_SIMPLE_DOCKVIEW_STYLE);
+	m_wndProps.Create(m_hWnd,	rcDefault, _T("Attribute Properties"),	ATL_SIMPLE_DOCKVIEW_STYLE);
+	m_wndAttribs.Create(m_hWnd,	rcDefault, _T("Block Attributes"),		ATL_SIMPLE_DOCKVIEW_STYLE);
+	m_wndBlocks.Create(m_hWnd,	rcDefault, _T("City Blocks"),			ATL_SIMPLE_DOCKVIEW_STYLE);
 
-	m_dock.AddWindow(g_properties);
-	m_dock.AddWindow(g_attributes);
-	m_dock.AddWindow(g_blocks);
-	m_dock.DockWindow(g_properties,	DOCK_RIGHT);
-	m_dock.DockWindow(g_attributes,	DOCK_RIGHT);
-	m_dock.DockWindow(g_blocks,		DOCK_LEFT);
+	m_dock.AddWindow(m_wndProps);
+	m_dock.AddWindow(m_wndAttribs);
+	m_dock.AddWindow(m_wndBlocks);
+	m_dock.DockWindow(m_wndProps,	DOCK_RIGHT);
+	m_dock.DockWindow(m_wndAttribs,	DOCK_RIGHT);
+	m_dock.DockWindow(m_wndBlocks,	DOCK_LEFT);
 
 	m_dock.SetPaneSize(DOCK_LEFT, 200);
 	m_dock.SetPaneSize(DOCK_RIGHT, 200);
 
 	m_hWndClient = hwndDock;
 
-	m_psdlDoc.SetViews(&g_blocks, &g_attributes, &g_properties);
+	m_psdlDoc.SetViews(&m_wndBlocks, &m_wndAttribs, &m_wndProps);
 	m_psdlDoc.NewDocument();
 	SetEditingMode(ID_MODE_PSDL);
 
@@ -127,8 +123,6 @@ LRESULT CMainFrame::OnPaintDescendants(UINT, WPARAM wParam, LPARAM lParam, BOOL&
 {
 	HDC hDC = (HDC) wParam;
 	HGLRC hRC = (HGLRC) lParam;
-
-//	RenderScene();
 
 	m_psdlDoc.RenderScene(hDC, hRC);
 
@@ -164,9 +158,9 @@ LRESULT CMainFrame::OnViewBar(WORD, WORD wID, HWND, BOOL&)
 	HWND hWnd;
 
 	switch (wID) {
-		case ID_WINDOWS_CITYBLOCKS:	hWnd = g_blocks;		break;
-		case ID_WINDOWS_ATTRIBUTES:	hWnd = g_attributes;	break;
-		case ID_WINDOWS_PROPERTIES:	hWnd = g_properties;	break;
+		case ID_WINDOWS_CITYBLOCKS:	hWnd = m_wndBlocks;		break;
+		case ID_WINDOWS_ATTRIBUTES:	hWnd = m_wndAttribs;	break;
+		case ID_WINDOWS_PROPERTIES:	hWnd = m_wndProps;		break;
 		default: return 0;
 	}
 
@@ -213,76 +207,31 @@ LRESULT CMainFrame::OnSetEditingMode(WORD, WORD wID, HWND, BOOL&)
 	return 0;
 }
 
-typedef struct
-{
-	unsigned short from, to;
-}
-vertexMap;
-
-void rotateVertex(Vertex *vTarget, Vertex vOrigin, double dAngle)
-{
-	vTarget->x = vOrigin.x + (vTarget->x - vOrigin.x) * cos(dAngle) - (vTarget->z - vOrigin.z) * sin(dAngle);
-	vTarget->z = vOrigin.z + (vTarget->x - vOrigin.x) * sin(dAngle) + (vTarget->z - vOrigin.z) * cos(dAngle);
-}
-
-unsigned short copyVertex(vector<vertexMap> *aLookup, unsigned short nFrom, Vertex vOffset)
-{
-	long nTo = -1;
-
-	for (size_t i = 0; i < aLookup->size(); i++)
-	{
-		if ((*aLookup)[i].from == nFrom)
-		{
-			nTo = (*aLookup)[i].to;
-		}
-	}
-/*
-	if (nTo < 0)
-	{
-		Vertex vCopy = g_psdl->getVertex(nFrom);
-
-		Vertex vFixed = { -940.3245f, 0, 1349.235f };
-		rotateVertex(&vCopy, vFixed, PI);
-
-		vCopy.x += vOffset.x;
-		vCopy.y += vOffset.y;
-		vCopy.z += vOffset.z;
-
-		nTo = g_psdl->addVertex(vCopy);
-
-		vertexMap newMap = { nFrom, nTo };
-
-		aLookup->push_back(newMap);
-	}
-*/
-	return nTo;
-}
-
 LRESULT CMainFrame::OnInsertBlock(WORD, WORD wID, HWND, BOOL&)
 {
-	unsigned int nInsert = g_blocks.list()->GetCaretIndex();
+	unsigned int nInsert = m_wndBlocks.list()->GetCaretIndex();
 	PSDL::Block block;
 
 //	block.addPerimeterPoint(0);
 
 	m_psdlDoc.InsertBlock(block, nInsert);
-//	g_blocks.insertBlock(&block, nInsert);
-
 	m_psdlDoc.m_bModified = true;
+
 	AddHistoryState(wID);
 	return 0;
 }
 
 LRESULT CMainFrame::OnDuplicateBlock(WORD, WORD wID, HWND, BOOL&)
 {
-/*	CDuplicateDlg dlg;
+	CDuplicateDlg dlg;
 
 	if (IDOK == dlg.DoModal())
 	{
-		int nBlocks = g_blocks.list()->GetSelCount();
-		int *aBlockIDs = new int[nBlocks];
-		g_blocks.list()->GetSelItems(nBlocks, aBlockIDs);
+		int nBlocks = m_wndBlocks.list()->GetSelCount();
+		int* aBlockIDs = new int[nBlocks];
+		m_wndBlocks.list()->GetSelItems(nBlocks, aBlockIDs);
 
+		// Experiment, should be removed
 		Vertex vOffset = { 1220.0787f, -20.2605f, -870.612f };
 
 		vector<vertexMap> aDuplicates;
@@ -291,9 +240,10 @@ LRESULT CMainFrame::OnDuplicateBlock(WORD, WORD wID, HWND, BOOL&)
 		{
 			unsigned long nIndex = aBlockIDs[it];
 
-			PSDL::Block *origBlock = g_psdl->getBlock(nIndex);
-			PSDL::Block *block = new PSDL::Block(*origBlock);
+			PSDL::Block* origBlock = m_psdlDoc.GetBlock(nIndex);
+			PSDL::Block* block = new PSDL::Block(*origBlock);
 
+			// Duplicate the vertices in the PSDL used by the block's attributes
 			if (g_duplicateProps.bVertices)
 			{
 				size_t k;
@@ -303,7 +253,7 @@ LRESULT CMainFrame::OnDuplicateBlock(WORD, WORD wID, HWND, BOOL&)
 					unsigned short nVertexRef = block->getPerimeterPoint(k)->vertex;
 
 					block->setPerimeterPoint(
-						k, copyVertex(&aDuplicates, nVertexRef, vOffset), 0
+						k, m_psdlDoc.CopyVertex(&aDuplicates, nVertexRef, vOffset), 0
 					);
 				}
 
@@ -312,7 +262,7 @@ LRESULT CMainFrame::OnDuplicateBlock(WORD, WORD wID, HWND, BOOL&)
 				for (size_t i = 0; i < block->numAttributes(); i++)
 				{
 					block->m_attributes[i] = origBlock->getAttribute(i)->clone();
-					PSDL::Attribute *atb = block->getAttribute(i);
+					PSDL::Attribute* atb = block->getAttribute(i);
 					j++;
 
 					unsigned char type = atb->type();
@@ -330,7 +280,7 @@ LRESULT CMainFrame::OnDuplicateBlock(WORD, WORD wID, HWND, BOOL&)
 								unsigned short nVertexRef = static_cast<PSDL::RoadStrip*>(atb)->getVertexRef(k);
 
 								static_cast<PSDL::RoadStrip*>(atb)->setVertexRef(
-									k, copyVertex(&aDuplicates, nVertexRef, vOffset)
+									k, m_psdlDoc.CopyVertex(&aDuplicates, nVertexRef, vOffset)
 								);
 							}
 							break;
@@ -341,7 +291,7 @@ LRESULT CMainFrame::OnDuplicateBlock(WORD, WORD wID, HWND, BOOL&)
 								unsigned short nVertexRef = static_cast<PSDL::Crosswalk*>(atb)->getVertexRef(k);
 
 								static_cast<PSDL::Crosswalk*>(atb)->setVertexRef(
-									k, copyVertex(&aDuplicates, nVertexRef, vOffset)
+									k, m_psdlDoc.CopyVertex(&aDuplicates, nVertexRef, vOffset)
 								);
 							}
 							break;
@@ -362,14 +312,14 @@ LRESULT CMainFrame::OnDuplicateBlock(WORD, WORD wID, HWND, BOOL&)
 
 			for (unsigned char i = 0; i < g_duplicateProps.nCount; i++)
 			{
-				g_psdl->addBlock(*block);
-				g_blocks.insertBlock(block, -1);
+				m_psdlDoc.AddBlock(*block);
+			//	g_blocks.insertBlock(block, -1);
 			}
 		}
 	}
 
-	g_psdl->m_bModified = true;
-	AddHistoryState(wID);*/
+	m_psdlDoc.m_bModified = true;
+	AddHistoryState(wID);
 	return 0;
 }
 

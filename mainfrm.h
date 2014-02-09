@@ -114,6 +114,10 @@ private:
 
 	COpenGLView m_view;
 	CFlatDockingWindow m_dock;
+
+	CBlocksWindow		m_wndBlocks;
+	CAttributesWindow	m_wndAttribs;
+	CPropertiesWindow	m_wndProps;
 };
 
 #endif
