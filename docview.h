@@ -24,6 +24,10 @@ class DocTemplateBase
 public:
 
 	virtual std::string GetFileName(bool bFull = false) = 0;
+	virtual error::code OpenDocument(LPCTSTR lpszPathName) = 0;
+	virtual error::code SaveDocument(LPCTSTR lpszPathName = NULL) = 0;
+	virtual bool FileExists(void) = 0;
+	virtual bool IsModified(void) = 0;
 };
 
 template <class TDoc, class TView>
@@ -35,6 +39,7 @@ public:
 	{
 		m_pDoc = NULL;
 		m_pView = new TView();
+		m_bFileExists = false;
 		m_bModified = false;
 		m_sFileName = _T("");
 	}
@@ -79,34 +84,58 @@ public:
 		m_pDoc = new TDoc();
 		m_pView->SetDocument(m_pDoc);
 		m_sFileName = sFileName;
-		m_bModified = false;
+		m_bModified = true;
+		m_bFileExists = false;
 		UpdateViews();
 	}
 
 	error::code OpenDocument(LPCTSTR lpszPathName)
 	{
 		TDoc* pDoc = new TDoc();
-		error::code code = pDoc->ReadFile(lpszPathName);
 
-		if (code & error::wrong_format)
-		{
-			delete pDoc;
-		}
-		else
+		error::code code = pDoc->read_file(lpszPathName);
+
+		if (code == error::ok)
 		{
 			if (m_pDoc) delete m_pDoc;
 			m_pDoc = pDoc;
 			m_pView->SetDocument(m_pDoc);
 			m_sFileName = lpszPathName;
 			m_bModified = false;
+			m_bFileExists = true;
 			UpdateViews();
+		}
+		else
+		{
+			delete pDoc;
 		}
 
 		return code;
 	}
 
-	virtual void UpdateViews(void) { }
+	error::code SaveDocument(LPCTSTR lpszPathName = NULL)
+	{
+		if (!lpszPathName)
+			lpszPathName = m_sFileName.c_str();
 
+		error::code code = m_pDoc->write_file(lpszPathName);
+
+		if (code == error::ok)
+		{
+			m_sFileName = lpszPathName;
+			m_bModified = false;
+			m_bFileExists = true;
+		}
+
+		return code;
+	}
+
+	bool FileExists(void) { return m_bFileExists; }
+	bool IsModified(void) { return m_bModified;   }
+
+	virtual void UpdateViews(void) {}
+
+	bool m_bFileExists;
 	bool m_bModified;
 
 protected:

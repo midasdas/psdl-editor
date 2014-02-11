@@ -36,6 +36,7 @@ BEGIN
 			MENUITEM "&CPVS"					ID_FILE_NEW_CPVS
 			MENUITEM "&INST"					ID_FILE_NEW_INST
 			MENUITEM "&BAI"						ID_FILE_NEW_BAI
+			MENUITEM "Path&set"					ID_FILE_NEW_PATHSET
 			MENUITEM SEPARATOR
 			MENUITEM "Blank &Workspace"			ID_FILE_NEW_WORKSPACE
 		END
@@ -455,9 +456,10 @@ END
 
 STRINGTABLE DISCARDABLE
 BEGIN
-	IDS_SAVE_CHANGES	"Save changes to %s?"
-	IDS_UNDO_COMMAND	"&Undo %s\tCtrl+Z"
-	IDS_REDO_COMMAND	"&Redo %s\tCtrl+Y"
+	IDS_SAVE_CHANGES "Save changes to %s?"
+	IDS_INVALID_FILE "The file format is invalid or unsupported."
+	IDS_UNDO_COMMAND "&Undo %s\tCtrl+Z"
+	IDS_REDO_COMMAND "&Redo %s\tCtrl+Y"
 END
 
 STRINGTABLE DISCARDABLE

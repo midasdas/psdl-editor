@@ -5,7 +5,8 @@ namespace error
 {
 	enum code
 	{
-		ok,
+		ok = 0,
+		cant_open = 1,
 		wrong_format
 	};
 };

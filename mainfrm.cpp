@@ -31,6 +31,8 @@ BOOL CMainFrame::OnIdle()
 	UIUpdateToolBar();
 	UIUpdateMenuBar(FALSE, TRUE);
 
+	UIEnable(ID_FILE_SAVE, CanSave());
+
 	UISetText(ID_EDIT_UNDO, GetUndoDescription());
 	UISetText(ID_EDIT_REDO, GetRedoDescription());
 	UIEnable(ID_EDIT_UNDO, CanUndo());
@@ -75,13 +77,16 @@ LRESULT CMainFrame::OnCreate(UINT, WPARAM, LPARAM, BOOL&)
 
 	m_wndProps.Create(m_hWnd,	rcDefault, _T("Attribute Properties"),	ATL_SIMPLE_DOCKVIEW_STYLE);
 	m_wndAttribs.Create(m_hWnd,	rcDefault, _T("Block Attributes"),		ATL_SIMPLE_DOCKVIEW_STYLE);
+	m_wndPerimeter.Create(m_hWnd,	rcDefault, _T("Perimeter"),			ATL_SIMPLE_DOCKVIEW_STYLE);
 	m_wndBlocks.Create(m_hWnd,	rcDefault, _T("City Blocks"),			ATL_SIMPLE_DOCKVIEW_STYLE);
 
 	m_dock.AddWindow(m_wndProps);
 	m_dock.AddWindow(m_wndAttribs);
+	m_dock.AddWindow(m_wndPerimeter);
 	m_dock.AddWindow(m_wndBlocks);
 	m_dock.DockWindow(m_wndProps,	DOCK_RIGHT);
 	m_dock.DockWindow(m_wndAttribs,	DOCK_RIGHT);
+	m_dock.DockWindow(m_wndPerimeter,	DOCK_LEFT);
 	m_dock.DockWindow(m_wndBlocks,	DOCK_LEFT);
 
 	m_dock.SetPaneSize(DOCK_LEFT, 200);
@@ -89,8 +94,10 @@ LRESULT CMainFrame::OnCreate(UINT, WPARAM, LPARAM, BOOL&)
 
 	m_hWndClient = hwndDock;
 
-	m_psdlDoc.SetViews(&m_wndBlocks, &m_wndAttribs, &m_wndProps);
+	m_psdlDoc.SetViews(&m_wndBlocks, &m_wndPerimeter, &m_wndAttribs, &m_wndProps);
+	m_cpvsDoc.SetViews(&m_wndBlocks);
 	m_psdlDoc.NewDocument();
+	m_cpvsDoc.NewDocument();
 	SetEditingMode(ID_MODE_PSDL);
 
 	PIXELFORMATDESCRIPTOR pfd =
@@ -189,19 +196,12 @@ void CMainFrame::SetEditingMode(int iMode)
 
 	m_iEditMode = iMode;
 
-	DocTemplateBase* doc = NULL;
-
-	switch (m_iEditMode)
-	{
-		case ID_MODE_PSDL:
-			doc = &m_psdlDoc;
-			break;
-	}
+	DocTemplateBase* pDoc = GetActiveDocument();
 
 	CString sTitle = _T("");
 
-	if (doc)
-		sTitle.Format(" - [%s]", doc->GetFileName().c_str());
+	if (pDoc)
+		sTitle.Format(" - [%s]", pDoc->GetFileName().c_str());
 
 	SetWindowText(LS(IDR_MAINFRAME) + sTitle);
 }
@@ -232,93 +232,115 @@ LRESULT CMainFrame::OnDuplicateBlock(WORD, WORD wID, HWND, BOOL&)
 
 	if (IDOK == dlg.DoModal())
 	{
-		int nBlocks = m_wndBlocks.list()->GetSelCount();
-		int* aBlockIDs = new int[nBlocks];
-		m_wndBlocks.list()->GetSelItems(nBlocks, aBlockIDs);
+		unsigned long nBlocks = m_wndBlocks.m_list.GetSelCount();
+		int* aBlockIds = new int[nBlocks];
+		m_wndBlocks.m_list.GetSelItems(nBlocks, aBlockIds);
 
 		// Experiment, should be removed
-		psdl::vertex vOffset = { 1220.0787f, -20.2605f, -870.612f };
+		psdl::vertex vOffset(1220.0787f, -20.2605f, -870.612f);
 
-		vector<vertexMap> aDuplicates;
-
-		for (size_t it = 0; it < nBlocks; it++)
+		for (unsigned char i = 0; i < g_duplicateProps.nCount; i++)
 		{
-			unsigned long nIndex = aBlockIDs[it];
+			unsigned long nOffset = m_psdlDoc.NumBlocks(); // Number of PSDL blocks at this point
+			vector<vertexMap> aDuplicates;
 
-			psdl::block* origBlock = m_psdlDoc.GetBlock(nIndex);
-			psdl::block* block = new psdl::block(*origBlock);
-
-			// Duplicate the vertices in the PSDL used by the block's attributes
-			if (g_duplicateProps.bVertices)
+			for (unsigned long iBlock = 0; iBlock < nBlocks; iBlock++)
 			{
-				size_t k;
+				unsigned long iIndex = aBlockIds[iBlock];
 
-				for (k = 0; k < block->numPerimeterPoints(); k++)
+				psdl::block* block = new psdl::block(*m_psdlDoc.GetBlock(iIndex));
+
+				// Duplicate the vertices in the PSDL used by the block's perimeter
+				if (g_duplicateProps.bPerimeters)
 				{
-					unsigned short nVertexRef = block->get_perimeter_point(k)->vertex;
-
-					block->setPerimeterPoint(
-						k, m_psdlDoc.CopyVertex(&aDuplicates, nVertexRef, vOffset), 0
-					);
-				}
-
-				int j = 0;
-
-				for (size_t i = 0; i < block->numAttributes(); i++)
-				{
-					block->m_attributes[i] = origBlock->get_attribute(i)->clone();
-					psdl::attribute* atb = block->get_attribute(i);
-					j++;
-
-					unsigned char type = atb->type;
-					switch (type)
+					for (unsigned long iPt = 0; iPt < block->num_perimeters(); iPt++)
 					{
-						case ATB_ROAD:
-						case ATB_SIDEWALK:
-						case ATB_RECTANGLE:
-						case ATB_ROADTRIANGLEFAN:
-						case ATB_TRIANGLEFAN:
-						case ATB_DIVIDEDROAD:
-						case ATB_ROOFTRIANGLEFAN:
-							for (k = 0; k < static_cast<psdl::road_strip*>(atb)->num_vertices(); k++)
+						unsigned long iNb = 0; // 0 = no neighbour
+
+						if (g_duplicateProps.bNeighbours)
+						{
+							int* beg = aBlockIds;
+							int* end = aBlockIds + nBlocks;
+
+							int* iFind = std::find(beg, end, (long) block->_perimeter[iPt].block - 1);
+							if (iFind != end)
 							{
-								unsigned short nVertexRef = static_cast<psdl::road_strip*>(atb)->get_vertex_ref(k);
-
-								static_cast<psdl::road_strip*>(atb)->set_vertex_ref(
-									k, m_psdlDoc.CopyVertex(&aDuplicates, nVertexRef, vOffset)
-								);
+								iNb = iFind - beg + nOffset + 1;
+								ATLTRACE("\nNeigbour %x adjusted (%x)", iPt, iNb);
 							}
-							break;
+						}
 
-						case ATB_CROSSWALK:
-							for (k = 0; k < 4; k++)
-							{
-								unsigned short nVertexRef = static_cast<psdl::crosswalk*>(atb)->get_vertex_ref(k);
-
-								static_cast<psdl::crosswalk*>(atb)->set_vertex_ref(
-									k, m_psdlDoc.CopyVertex(&aDuplicates, nVertexRef, vOffset)
-								);
-							}
-							break;
-
-						case ATB_SLIVER:
-						case ATB_FACADEBOUND:
-						case ATB_FACADE:
-							// TODO!!
-						//	break;
-
-						default:
-							j--;
+						block->_perimeter[iPt].vertex = m_psdlDoc.CopyVertex(block->_perimeter[iPt].vertex, vOffset, aDuplicates);
+						block->_perimeter[iPt].block  = iNb;
 					}
 				}
 
-				ATLTRACE("Block %x copied; vertices copied for %d attributes\n", nIndex, j);
-			}
+				// Duplicate the vertices in the PSDL used by the block's attributes
+				if (g_duplicateProps.bVertices)
+				{
+					int i = 0;
+					unsigned long j;
 
-			for (unsigned char i = 0; i < g_duplicateProps.nCount; i++)
-			{
+					for (unsigned long iAtb = 0; iAtb < block->num_attributes(); iAtb++)
+					{
+						psdl::attribute* atb = block->get_attribute(iAtb);
+						i++;
+
+						unsigned char type = atb->type;
+						switch (type)
+						{
+							case ATB_ROAD:
+							case ATB_SIDEWALK:
+							case ATB_RECTANGLE:
+							case ATB_ROADTRIANGLEFAN:
+							case ATB_TRIANGLEFAN:
+							case ATB_DIVIDEDROAD:
+							case ATB_ROOFTRIANGLEFAN:
+
+								for (j = 0; j < static_cast<psdl::road_strip*>(atb)->num_vertices(); j++)
+								{
+									unsigned short iVertex = static_cast<psdl::road_strip*>(atb)->get_vertex_ref(j);
+
+									static_cast<psdl::road_strip*>(atb)->set_vertex_ref(
+										j, m_psdlDoc.CopyVertex(iVertex, vOffset, aDuplicates)
+									);
+								}
+								break;
+
+							case ATB_CROSSWALK:
+
+								for (j = 0; j < 4; j++)
+								{
+									unsigned short nVertexRef = static_cast<psdl::crosswalk*>(atb)->get_vertex_ref(j);
+
+									static_cast<psdl::crosswalk*>(atb)->set_vertex_ref(
+										j, m_psdlDoc.CopyVertex(nVertexRef, vOffset, aDuplicates)
+									);
+								}
+								break;
+
+							case ATB_FACADE:
+
+								static_cast<psdl::facade*>(atb)->bottom = m_psdlDoc.CopyHeight(static_cast<psdl::facade*>(atb)->bottom);
+
+							case ATB_SLIVER:
+							case ATB_FACADEBOUND:
+
+								static_cast<psdl::facade*>(atb)->left   = m_psdlDoc.CopyVertex(static_cast<psdl::facade*>(atb)->left, vOffset, aDuplicates);
+								static_cast<psdl::facade*>(atb)->right  = m_psdlDoc.CopyVertex(static_cast<psdl::facade*>(atb)->right, vOffset, aDuplicates);
+								static_cast<psdl::facade*>(atb)->top    = m_psdlDoc.CopyHeight(static_cast<psdl::facade*>(atb)->bottom);
+
+								break;
+
+							default:
+								i--;
+						}
+					}
+
+					ATLTRACE("Block %x copied; vertices copied for %d attributes\n", iIndex, j);
+				}
+
 				m_psdlDoc.AddBlock(*block);
-			//	g_blocks.insertBlock(block, -1);
 			}
 		}
 	}
@@ -534,11 +556,26 @@ LRESULT CMainFrame::OnAppAbout(WORD, WORD, HWND, BOOL&)
 
 LRESULT CMainFrame::OnFileNew(WORD wNotifyCode, WORD wID, HWND hWndCtl, BOOL& bHandled)
 {
+	DocTemplateBase* pDoc = GetActiveDocument();
+
+	if (pDoc && pDoc->FileExists() && pDoc->IsModified())
+	{
+		CString sText;
+		sText.Format(LS(IDS_SAVE_CHANGES), m_psdlDoc.GetFileName().c_str());
+		int ret = MessageBox(sText, LS(IDR_MAINFRAME), MB_YESNOCANCEL | MB_ICONQUESTION);
+
+		if (ret == IDYES)
+			OnFileSave(NULL, NULL, NULL, bHandled);
+		else if (ret == IDCANCEL)
+			return 0;
+	}
+
 	if (wID == ID_FILE_NEW)
 	{
 		switch (m_iEditMode)
 		{
-			case ID_MODE_PSDL:	wID = ID_FILE_NEW_PSDL;
+			case ID_MODE_PSDL: wID = ID_FILE_NEW_PSDL; break;
+			case ID_MODE_CPVS: wID = ID_FILE_NEW_CPVS; break;
 		}
 	}
 
@@ -548,22 +585,30 @@ LRESULT CMainFrame::OnFileNew(WORD wNotifyCode, WORD wID, HWND hWndCtl, BOOL& bH
 			m_psdlDoc.NewDocument();
 			SetEditingMode(ID_MODE_PSDL);
 			break;
+
+		case ID_FILE_NEW_CPVS:
+			m_cpvsDoc.NewDocument();
+			SetEditingMode(ID_MODE_CPVS);
+			break;
 	}
 
 	m_view.Invalidate();
 	return 0;
 }
 
-LRESULT CMainFrame::OnFileOpen(WORD, WORD, HWND, BOOL&)
+LRESULT CMainFrame::OnFileOpen(WORD, WORD, HWND, BOOL& bHandled)
 {
-	if (m_psdlDoc.m_bModified)
+	DocTemplateBase* pDoc = GetActiveDocument();
+
+	if (pDoc && pDoc->FileExists() && pDoc->IsModified())
 	{
 		CString sText;
 		sText.Format(LS(IDS_SAVE_CHANGES), m_psdlDoc.GetFileName().c_str());
-
 		int ret = MessageBox(sText, LS(IDR_MAINFRAME), MB_YESNOCANCEL | MB_ICONQUESTION);
 
-		if (ret == IDCANCEL)
+		if (ret == IDYES)
+			OnFileSave(NULL, NULL, NULL, bHandled);
+		else if (ret == IDCANCEL)
 			return 0;
 	}
 
@@ -583,36 +628,135 @@ LRESULT CMainFrame::OnFileOpen(WORD, WORD, HWND, BOOL&)
 
 	if (IDOK == fDlg.DoModal())
 	{
-		char* sExt = fDlg.GetFileExt();
-		ATLTRACE("%s", sExt);
+		g_options.files.browseDir = fDlg.GetFolderPath();
 
-		if (!strcmpi(sExt, "psdl") || !strcmpi(sExt, "psd"))
+		char* strExtension = fDlg.GetFileExt();
+
+		DocTemplateBase* pDoc = NULL;
+		int iMode = -1;
+
+		struct extMap { const char* strExt; DocTemplateBase* pDocTmpl; int iEditMode; };
+
+		extMap map[6] =
 		{
-/*			PSDL psdl(fDlg.GetPathName());
+			{ "psdl",    &m_psdlDoc, ID_MODE_PSDL    },
+			{ "psd",     &m_psdlDoc, ID_MODE_PSDL    },
+			{ "cpvs",    &m_cpvsDoc, ID_MODE_CPVS    },
+			{ "inst",    NULL,       ID_MODE_INST    },
+			{ "bai",     NULL,       ID_MODE_BAI     },
+			{ "pathset", NULL,       ID_MODE_PATHSET }
+		};
 
-			if (psdl.ReadFile(fDlg.GetPathName()))
+		for (int i = 0; i < 6; i++)
+		{
+			if (!strcmpi(strExtension, map[i].strExt))
 			{
-				g_psdl = new PSDL(psdl);
-				g_blocks.SetPSDL(g_psdl);
-				g_blocks.list()->SetFocus();
-				g_attributes.SetBlock(NULL);
-				g_properties.SetAttribute(NULL);
-				SetEditingMode(ID_MODE_PSDL);*/
+				iMode = map[i].iEditMode;
+				pDoc  = map[i].pDocTmpl;
+			}
+		}
 
-			if (m_psdlDoc.OpenDocument(fDlg.GetPathName()) == error::ok)
+		if (pDoc)
+		{
+			error::code code = pDoc->OpenDocument(fDlg.GetPathName());
+
+			if (code == error::ok)
 			{
-				SetEditingMode(ID_MODE_PSDL);
+				SetEditingMode(iMode);
 				m_view.Invalidate();
 				m_view.SetFocus();
 			}
+			else if (code == error::wrong_format)
+			{
+				CString strErr = _T("Error");
+
+				switch (iMode)
+				{
+					case ID_MODE_PSDL: strErr = "Not a PSDL file"; break;
+					case ID_MODE_CPVS: strErr = "Not a CPVS file"; break;
+				}
+
+				MessageBox(strErr, LS(IDR_MAINFRAME), MB_ICONWARNING);
+			}
 			else
 			{
-				MessageBox(_T("Not a PSDL file"), NULL, MB_ICONERROR);
+				DWORD dwErrorCode = GetLastError();
+				LPTSTR lpMsg = NULL;
+				FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, dwErrorCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR) &lpMsg, 0, NULL);
+				MessageBox((CString) fDlg.GetPathName() + "\n\n" + lpMsg, LS(IDR_MAINFRAME), MB_ICONWARNING);
+				LocalFree(lpMsg);
 			}
+		}
+		else
+		{
+			MessageBox((CString) fDlg.GetPathName() + "\n\n" + LS(IDS_INVALID_FILE), LS(IDR_MAINFRAME), MB_ICONWARNING);
+		}
+
+	}
+
+	return 0;
+}
+
+LRESULT CMainFrame::OnFileSaveAs(WORD, WORD, HWND, BOOL&)
+{
+	CString sSelectedFile;
+
+	CCenterFileDialog fDlg(FALSE, _T("psdl"), NULL, OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, _T("\
+		MM2 City Geometry (*.psdl; *.psd)\0*.psdl; *.psd\0")
+	);
+
+	if (IDOK == fDlg.DoModal())
+	{
+		if (m_psdlDoc.SaveDocument(fDlg.GetPathName()) == error::ok)
+		{
+			SetEditingMode(ID_MODE_PSDL);
+		}
+		else
+		{
+			DWORD dwErrorCode = GetLastError();
+			LPTSTR lpMsg = NULL;
+			FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, dwErrorCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR) &lpMsg, 0, NULL);
+			MessageBox((CString) fDlg.GetPathName() + "\n\n" + lpMsg, LS(IDR_MAINFRAME), MB_ICONWARNING);
+			LocalFree(lpMsg);
 		}
 	}
 
-	g_options.files.browseDir = fDlg.GetFolderPath();
+	return 0;
+}
+
+DocTemplateBase* CMainFrame::GetActiveDocument(void)
+{
+	switch (m_iEditMode)
+	{
+		case ID_MODE_PSDL: return &m_psdlDoc;
+		case ID_MODE_CPVS: return &m_cpvsDoc;
+	}
+	return NULL;
+}
+
+BOOL CMainFrame::CanSave(void)
+{
+	DocTemplateBase* pDoc = GetActiveDocument();
+
+	if (pDoc)
+		return pDoc->IsModified();
+
+	return FALSE;
+}
+
+LRESULT CMainFrame::OnFileSave(WORD, WORD, HWND, BOOL& bHandled)
+{
+	if (!GetActiveDocument()->FileExists())
+		return OnFileSaveAs(NULL, NULL, NULL, bHandled);
+
+	if (GetActiveDocument()->SaveDocument() != error::ok)
+	{
+		DWORD dwErrorCode = GetLastError();
+		LPTSTR lpMsg = NULL;
+		FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, dwErrorCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR) &lpMsg, 0, NULL);
+		MessageBox((CString) GetActiveDocument()->GetFileName().c_str() + "\n\n" + lpMsg, LS(IDR_MAINFRAME), MB_ICONWARNING);
+		LocalFree(lpMsg);
+	}
 
 	return 0;
 }
@@ -636,23 +780,6 @@ LRESULT CMainFrame::OnOpenContainingFolder(WORD, WORD, HWND, BOOL&)
 
 	ShellExecute(m_hWnd, NULL, lpDir, NULL, NULL, SW_SHOWNORMAL);
 
-	return 0;
-}
-
-LRESULT CMainFrame::OnFileSaveAs(WORD, WORD, HWND, BOOL&)
-{
-/*	CString sSelectedFile;
-
-	CCenterFileDialog fDlg(FALSE, _T("psdl"), NULL, OFN_HIDEREADONLY, _T("\
-		MM2 City Geometry (*.psdl; *.psd)\0*.psdl; *.psd\0")
-	);
-
-	if (IDOK == fDlg.DoModal()) {
-
-		if (!g_psdl->WriteFile(fDlg.m_szFileName))
-			MessageBox(_T("File writing error"), NULL, MB_ICONERROR);
-	}
-*/
 	return 0;
 }
 

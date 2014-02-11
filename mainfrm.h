@@ -29,6 +29,7 @@ public:
 	virtual BOOL OnIdle();
 
 	BEGIN_UPDATE_UI_MAP(CMainFrame)
+		UPDATE_ELEMENT(ID_FILE_SAVE,			UPDUI_MENUPOPUP | UPDUI_TOOLBAR)
 		UPDATE_ELEMENT(ID_EDIT_UNDO,			UPDUI_MENUPOPUP | UPDUI_TOOLBAR)
 		UPDATE_ELEMENT(ID_EDIT_REDO,			UPDUI_MENUPOPUP | UPDUI_TOOLBAR)
 		UPDATE_ELEMENT(ID_VIEW_TOOLBAR,			UPDUI_MENUPOPUP)
@@ -54,6 +55,7 @@ public:
 		COMMAND_RANGE_HANDLER(ID_FILE_NEW_PSDL, ID_FILE_NEW_WORKSPACE, OnFileNew)
 		COMMAND_ID_HANDLER(ID_FILE_OPEN, OnFileOpen)
 		COMMAND_ID_HANDLER(ID_FILE_OPENCONTAININGFOLDER, OnOpenContainingFolder)
+		COMMAND_ID_HANDLER(ID_FILE_SAVE, OnFileSave)
 		COMMAND_ID_HANDLER(ID_FILE_SAVE_AS, OnFileSaveAs)
 		COMMAND_ID_HANDLER(ID_APP_EXIT,	OnFileExit)
 
@@ -83,6 +85,7 @@ public:
 	LRESULT OnFileNew				(WORD, WORD, HWND, BOOL&);
 	LRESULT OnFileOpen				(WORD, WORD, HWND, BOOL&);
 	LRESULT OnOpenContainingFolder	(WORD, WORD, HWND, BOOL&);
+	LRESULT OnFileSave				(WORD, WORD, HWND, BOOL&);
 	LRESULT OnFileSaveAs			(WORD, WORD, HWND, BOOL&);
 
 	LRESULT OnViewToolBar			(WORD, WORD, HWND, BOOL&);
@@ -103,6 +106,9 @@ public:
 	void SelectBlock(long iIndex);
 	void SelectAttribute(psdl::block* pBlock, long iIndex);
 
+	DocTemplateBase* GetActiveDocument(void);
+	BOOL CanSave(void);
+
 	// HistoryManager
 	CString GetUndoDescription(void);
 	CString GetRedoDescription(void);
@@ -112,11 +118,13 @@ private:
 	int m_iEditMode;
 
 	PSDLDocTemplate m_psdlDoc;
+	CPVSDocTemplate m_cpvsDoc;
 
 	COpenGLView m_view;
 	CFlatDockingWindow m_dock;
 
 	CBlocksWindow		m_wndBlocks;
+	CPerimeterWindow	m_wndPerimeter;
 	CAttributesWindow	m_wndAttribs;
 	CPropertiesWindow	m_wndProps;
 };
