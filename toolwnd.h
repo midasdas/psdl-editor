@@ -94,7 +94,7 @@ class CAttributesWindow : public CWindowImpl<CAttributesWindow>
 		NOTIFY_CODE_HANDLER(NM_SETFOCUS, OnSetFocus)
 	END_MSG_MAP()
 
-	void SetBlock(psdl::block *block);
+	void SetBlock(psdl::block* block);
 
 	LRESULT OnSelChange(WORD, WORD, HWND hWnd, BOOL&);
 	LRESULT OnSetFocus(int idCtrl, LPNMHDR pnmh, BOOL& bHandled);
@@ -119,9 +119,41 @@ class CAttributesWindow : public CWindowImpl<CAttributesWindow>
 		return 0;
 	}
 
+	CMyListBox m_list;
+
 private:
 
+	psdl::block* m_pBlock;
+};
+
+class CPerimeterWindow : public CWindowImpl<CPerimeterWindow>
+{
+	BEGIN_MSG_MAP(CPerimeterWindow)
+		MESSAGE_HANDLER(WM_CREATE, OnCreate)
+		MESSAGE_HANDLER(WM_SIZE, OnSize)
+	END_MSG_MAP()
+
+	void SetBlock(psdl::block* block);
+
+	LRESULT OnCreate(UINT, WPARAM, LPARAM lParam, BOOL&)
+	{
+		m_list.Create(m_hWnd, rcDefault, IDC_LIST);
+		m_list.SetTabStops(20);
+		return 0;
+	}
+
+	LRESULT OnSize(UINT, WPARAM, LPARAM, BOOL&)
+	{
+		CRect rc;
+		GetClientRect(&rc);
+		m_list.SetWindowPos(NULL, 0, 0, rc.right, rc.bottom, SWP_NOMOVE);
+		return 0;
+	}
+
 	CMyListBox m_list;
+
+private:
+
 	psdl::block* m_pBlock;
 };
 
@@ -138,7 +170,7 @@ class CBlocksWindow : public CWindowImpl<CBlocksWindow>
 		int nID;
 		CString sText, sType;
 
-		switch (pBlock->getType())
+		switch (pBlock->type)
 		{
 			case BIT_SUBTERANEAN:	nID = IDS_SUBTERANEAN;	break;
 			case BIT_PLAIN:			nID = IDS_PLAIN;		break;
@@ -163,7 +195,7 @@ class CBlocksWindow : public CWindowImpl<CBlocksWindow>
 
 		m_list.SetRedraw(FALSE);
 		m_list.ResetContent();
-		for (size_t i = 0; i < psdl->numBlocks(); i++)
+		for (size_t i = 0; i < psdl->num_blocks(); i++)
 		{
 			InsertBlock(psdl->get_block(i), -1);
 		}
@@ -196,7 +228,6 @@ class CBlocksWindow : public CWindowImpl<CBlocksWindow>
 		return 0;
 	}
 
-private:
 	CMyListBox m_list;
 };
 
