@@ -22,16 +22,19 @@ private:
 	typedef DocTemplate<psdl, PSDLView> baseClass;
 
 	CBlocksWindow*		m_pBlocksWindow;
+	CPerimeterWindow*	m_pPerimeterWindow;
 	CAttributesWindow*	m_pAttribsWindow;
 	CPropertiesWindow*	m_pPropsWindow;
 
 public:
 
 	void SetViews(	CBlocksWindow*		pBlocksWindow,
+					CPerimeterWindow*	pPerimeterWindow,
 					CAttributesWindow*	pAttribsWindow,
 					CPropertiesWindow*	pPropsWindow)
 	{
 		m_pBlocksWindow		= pBlocksWindow;
+		m_pPerimeterWindow	= pPerimeterWindow;
 		m_pAttribsWindow	= pAttribsWindow;
 		m_pPropsWindow		= pPropsWindow;
 	}
@@ -39,6 +42,7 @@ public:
 	void UpdateViews(void)
 	{
 		m_pBlocksWindow->SetPSDL(m_pDoc);
+		m_pPerimeterWindow->SetBlock(NULL);
 		m_pAttribsWindow->SetBlock(NULL);
 		m_pPropsWindow->SetAttribute(NULL);
 	}
@@ -55,13 +59,18 @@ public:
 
 	// --- Document Operations ---
 
-	void InsertBlock(psdl::block block, unsigned int nPos)
+	unsigned long NumBlocks(void)
+	{
+		return m_pDoc->num_blocks();
+	}
+
+	void InsertBlock(psdl::block& block, unsigned int nPos)
 	{
 		m_pDoc->insert_block(block, nPos);
 		m_pBlocksWindow->InsertBlock(&block, nPos);
 	}
 
-	void AddBlock(psdl::block block)
+	void AddBlock(psdl::block& block)
 	{
 		m_pDoc->add_block(block);
 		m_pBlocksWindow->InsertBlock(&block);
@@ -76,6 +85,7 @@ public:
 
 	void SelectBlock(long iIndex)
 	{
+		m_pPerimeterWindow->SetBlock(m_pDoc->get_block(iIndex));
 		m_pAttribsWindow->SetBlock(m_pDoc->get_block(iIndex));
 	}
 
@@ -89,15 +99,15 @@ public:
 		vTarget->z = vOrigin.z + (vTarget->x - vOrigin.x) * sin(dAngle) + (vTarget->z - vOrigin.z) * cos(dAngle);
 	}
 
-	unsigned short CopyVertex(std::vector<vertexMap>* aLookup, unsigned short nFrom, psdl::vertex vOffset)
+	unsigned short CopyVertex(unsigned short nFrom, psdl::vertex vOffset, std::vector<vertexMap>& aLookup)
 	{
 		long nTo = -1;
 
-		for (size_t i = 0; i < aLookup->size(); i++)
+		for (size_t i = 0; i < aLookup.size(); i++)
 		{
-			if ((*aLookup)[i].from == nFrom)
+			if (aLookup[i].from == nFrom)
 			{
-				nTo = (*aLookup)[i].to;
+				nTo = aLookup[i].to;
 			}
 		}
 
@@ -105,21 +115,26 @@ public:
 		{
 			psdl::vertex vCopy = m_pDoc->getVertex(nFrom);
 
-			psdl::vertex vFixed = { -940.3245f, 0, 1349.235f };
+			psdl::vertex vFixed(-940.3245f, 0, 1349.235f);
 			RotateVertex(&vCopy, vFixed, PI);
 
 			vCopy.x += vOffset.x;
 			vCopy.y += vOffset.y;
 			vCopy.z += vOffset.z;
 
-			nTo = m_pDoc->addVertex(vCopy);
+			nTo = m_pDoc->add_vertex(vCopy);
 
 			vertexMap newMap = { nFrom, nTo };
 
-			aLookup->push_back(newMap);
+			aLookup.push_back(newMap);
 		}
 
 		return nTo;
+	}
+
+	unsigned short CopyHeight(unsigned short iHeight)
+	{
+		return m_pDoc->add_height(iHeight);
 	}
 };
 

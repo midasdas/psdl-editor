@@ -8,22 +8,33 @@
 
 using namespace std;
 
-long psdl::getBlockIndex(psdl::block *block)
+long psdl::getBlockIndex(psdl::block* block)
 {
-	for (long i = 0; i < m_aBlocks.size(); i++) {
-		if (&m_aBlocks[i] == block)
+	for (long i = 0; i < _blocks.size(); i++) {
+		if (&_blocks[i] == block)
 			return i;
 	}
 	return -1;
 }
 
-error::code psdl::ReadFile(const char *pathname)
+/*typedef struct
 {
-	unsigned long i, nSize;
+	unsigned short i_vertex;
+	unsigned short i_block;
+}
+perimeter_pt_i;*/
 
-	ifstream f(pathname, ios::in | ios::binary);
+error::code psdl::read_file(const char* filename)
+{
+	clock_t start_time = clock();
+	
+	unsigned long i, n_size;
 
-	ATLTRACE("\nReading file: %s\n", pathname);
+	ifstream f(filename, ios::in | ios::binary);
+
+	if (!f.is_open()) return error::cant_open;
+
+	ATLTRACE("\nReading file: %s\n", filename);
 
 	char identifier[4];
 	f.read(identifier, 4);
@@ -32,75 +43,94 @@ error::code psdl::ReadFile(const char *pathname)
 
 	f.seekg(4, ios_base::cur);
 
-	f.read((char*) &nSize, 4);
-	ATLTRACE("Number of vertices: 0x%x\n", nSize);
+	f.read((char*) &n_size, 4);
+	ATLTRACE("Number of vertices: 0x%x\n", n_size);
+	_vertices.reserve(n_size);
+
 	vertex vert;
-	for (i = 0; i < nSize; i++)
+	for (i = 0; i < n_size; i++)
 	{
 		f.read((char*) &vert, sizeof(vertex));
-		addVertex(vert);
+		add_vertex(vert);
 	//	vertices.push_back(vertex);
 	//	vertexRefs.push_back(i);
 
 	//	ATLTRACE("Vertex %x: %f, %f, %f\n", i, vertexRefs[i]->x, vertexRefs[i]->y, vertexRefs[i]->z);
 	}
 
-	f.read((char*) &nSize, 4);
-	ATLTRACE("Number of heights: 0x%x\n", nSize);
+	f.read((char*) &n_size, 4);
+	ATLTRACE("Number of heights: 0x%x\n", n_size);
+	_heights.reserve(n_size);
+
 	float height;
-	for (i = 0; i < nSize; i++)
+	for (i = 0; i < n_size; i++)
 	{
 		f.read((char*) &height, 4);
-		addHeight(height);
+		add_height(height);
 	}
 
-	f.read((char*) &nSize, 4);
-	ATLTRACE("Number of textures: 0x%x\n", nSize - 1);
-	unsigned char nLength;
-	for (i = 0; i < nSize - 1; i++)
+	f.read((char*) &n_size, 4);
+	ATLTRACE("Number of textures: 0x%x\n", n_size - 1);
+	_textures.reserve(n_size);
+
+	unsigned char n_length;
+	for (i = 0; i < n_size - 1; i++)
 	{
-		f.read((char*) &nLength, 1);
+		f.read((char*) &n_length, 1);
 		char* textureName;
 
-		if (nLength > 0)
+		if (n_length > 0)
 		{
-			textureName = new char[nLength];
-			f.read(textureName, nLength);
+			textureName = new char[n_length];
+			f.read(textureName, n_length);
 		}
 		else
 		{
 			textureName = "";
 		}
 
-		addTexture(textureName);
+		add_texname(textureName);
 
 	//	ATLTRACE("Texture %x: %s\n", i, textureName);
 	}
 
-	f.read((char*) &nSize, 4);
-	f.read((char*) &m_lUnknown0, 4);
-	nSize--;
-	ATLTRACE("Number of blocks: 0x%x\n", nSize);
-	for (i = 0; i < nSize; i++)
+	f.read((char*) &n_size, 4);
+	f.read((char*) &_unknown0, 4);
+	n_size--;
+	ATLTRACE("Number of blocks: 0x%x\n", n_size);
+	_blocks.reserve(n_size);
+
+//	vector<perimeter_pt_i>* perimeter_data = new vector<perimeter_pt_i>[n_size];
+
+	for (i = 0; i < n_size; i++)
 	{
-		block block;
-		unsigned long j, nPerimeterPoints, nAttributeSize;
+		psdl::block block;
+		unsigned long j, n_perimeters, n_attributesize;
 
-		f.read((char*) &nPerimeterPoints, 4);
-		f.read((char*) &nAttributeSize, 4);
+		f.read((char*) &n_perimeters, 4);
+		f.read((char*) &n_attributesize, 4);
 
-		block.setAttributeSize(nAttributeSize);
+	//	perimeter_data[i].reserve(n_perimeters);
+		block._perimeter.reserve(n_perimeters);
+		block.setAttributeSize(n_attributesize);
 
-		for (j = 0; j < nPerimeterPoints; j++)
+		for (j = 0; j < n_perimeters; j++)
 		{
-			perimeter_pt point;
-			f.read((char*) &point, sizeof(point));
-			block.add_perimeter_point(point);
+		//	perimeter_pt_i ppi;
+			perimeter_pt pp;
+
+		//	f.read((char*) &ppi.i_vertex, 2);
+		//	f.read((char*) &ppi.i_block,  2);
+
+			f.read((char*) &pp, sizeof(perimeter_pt));
+
+		//	perimeter_data[i].push_back(ppi);
+			block.add_perimeter_point(pp);
 		}
 
 		unsigned int nAttributes = 0;
 
-		long targetPos = f.tellg() + 2 * (long) nAttributeSize;
+		long targetPos = f.tellg() + 2 * (long) n_attributesize;
 
 		while (f.tellg() < targetPos)
 		{
@@ -108,15 +138,19 @@ error::code psdl::ReadFile(const char *pathname)
 			bool last;
 
 			f.read((char*) &id, 2);
-			                            // --- Masks ---
-			last    = id >> 7 & 1 == 1; // 1 =	00000001
-			type    = id >> 3 & 15;     // 15 =	00001111
-			subtype = id & 7;
+			                                 // ---- masks ----
+		//	last    = (id & 0x80) >> 7 == 1; // 0x80 = 10000000
+		//	type    = (id & 0x78) >> 3;      // 0x78 = 01111000
+		//	subtype = (id & 0x07);           // 0x07 = 00000111
 
-			if (type > 0xc) // Attribute doesn't exist!
+			last    = id >> 7 & 0x1 == 1;    // 0x1  = 00000001
+			type    = id >> 3 & 0xf;         // 0xf  = 00001111
+			subtype = id      & 0x7;         // 0x7  = 00000111
+
+			if (type > 0xc) // no such attribute!
 			{
-				f.seekg(targetPos); // Set file position to end of attribute list
-				break; // Exit while loop
+				f.seekg(targetPos); // set file position to end of attribute list
+				break; // exit while loop
 			}
 
 			attribute* atb = NULL;
@@ -193,7 +227,7 @@ error::code psdl::ReadFile(const char *pathname)
 
 						for (k = 0; k < 4; k++) // always 4 vertices
 
-							f.read((char*) &static_cast<crosswalk*>(atb)->i_vertices[k], 2);
+							f.read((char*) &static_cast<crosswalk*>(atb)->_i_vertices[k], 2);
 					}
 					break;
 
@@ -276,20 +310,17 @@ error::code psdl::ReadFile(const char *pathname)
 						else
 						{
 							atb = new junction();
-							unsigned short k, nLength;
-							bool bState;
+							unsigned short n_length;
 
-							f.read((char*) &nLength,								2);
-							f.read((char*) &static_cast<junction*>(atb)->flags,		2);
-							f.read((char*) &static_cast<junction*>(atb)->height1,	2);
-							f.read((char*) &static_cast<junction*>(atb)->height2,	2);
-							f.read((char*) &static_cast<junction*>(atb)->unknown3,	2);
+							f.read((char*) &n_length,                              2);
+							f.read((char*) &static_cast<junction*>(atb)->flags,    2);
+							f.read((char*) &static_cast<junction*>(atb)->height1,  2);
+							f.read((char*) &static_cast<junction*>(atb)->height2,  2);
+							f.read((char*) &static_cast<junction*>(atb)->unknown3, 2);
 
-							for (k = 0; k < 2 * (nLength - 4); k++)
-							{
-								f.read((char*) &bState, 1);
-								static_cast<junction*>(atb)->add_wall(bState);
-							}
+							n_length = 2 * (n_length - 4);
+							static_cast<junction*>(atb)->_enabled_walls.resize(n_length);
+							f.read((char*) &static_cast<junction*>(atb)->_enabled_walls[0], n_length);
 						}
 					}
 					break;
@@ -345,47 +376,57 @@ error::code psdl::ReadFile(const char *pathname)
 
 		add_block(block);
 	//	ATLTRACE("Block %x: done!\n", i);
-		if (i == 0x487)
-			ATLTRACE("Block %x: %x attributes\n", i, nAttributes);
 	}
 
-//	fseek(f, 1, SEEK_CUR);
-	unsigned char unknown1 = f.get();
-	ATLTRACE("unknown1 = %x\n", unknown1);
-
-	for (i = 0; i < nSize; i++)
+/*	// all vertices and blocks are read, so we can convert the perimeter indices to pointers:
+	for (i = 0; i < n_size; i++)
 	{
-		unsigned char bType;
-		f.read((char*) &bType, 1);
-		m_aBlocks[i].setType(bType);
-	}
+		block* block = get_block(i);
 
-//	fseek(f, 1, SEEK_CUR);
-	unsigned char unknown2 = f.get();
-	ATLTRACE("unknown2 = %x\n", unknown2);
+		for (unsigned long j = 0; j < perimeter_data[i].size(); j++)
+		{
+			perimeter_pt pp =
+			{
+				&_vertices[perimeter_data[i][j].i_vertex],
+				_blocks   [perimeter_data[i][j].i_block]
+			};
 
-	for (i = 0; i < nSize; i++)
+			block->add_perimeter_point(pp);
+		}
+	}*/
+
+	_unknown1 = f.get();
+	ATLTRACE("unknown1 = %x\n", _unknown1);
+
+	for (i = 0; i < n_size; i++)
 	{
-		unsigned char bProp;
-		f.read((char*) &bProp, 1);
-		m_aBlocks[i].setPropRule(bProp);
+		f.read((char*) &_blocks[i].type, 1);
 	}
 
-	f.read((char*) &m_vMin,		sizeof(vertex));
-	f.read((char*) &m_vMax,		sizeof(vertex));
-	f.read((char*) &m_vCenter,	sizeof(vertex));
-	f.read((char*) &m_fRadius,	4);
+	_unknown2 = f.get();
+	ATLTRACE("unknown2 = %x\n", _unknown2);
+
+	for (i = 0; i < n_size; i++)
+	{
+		f.read((char*) &_blocks[i].proprule, 1);
+	}
+
+	f.read((char*) &v_min,    sizeof(vertex));
+	f.read((char*) &v_max,    sizeof(vertex));
+	f.read((char*) &v_center, sizeof(vertex));
+	f.read((char*) &f_radius, 4);
 
 	unsigned char l;
 	unsigned short j, nRoadBlock;
 	float fDensity;
 
-	f.read((char*) &nSize, 4);
-	ATLTRACE("Number of blockpaths: 0x%x\n", nSize);
+	f.read((char*) &n_size, 4);
+	ATLTRACE("Number of blockpaths: 0x%x\n", n_size);
+	_blockpaths.reserve(n_size);
 
-	for (i = 0; i < nSize; i++)
+	for (i = 0; i < n_size; i++)
 	{
-		BlockPath *path = new BlockPath();;
+		blockpath *path = new blockpath();;
 
 		f.read((char*) &path->unknown4,	2);
 		f.read((char*) &path->unknown5,	2);
@@ -414,7 +455,7 @@ error::code psdl::ReadFile(const char *pathname)
 			path->roadBlocks.push_back(nRoadBlock);
 		}
 
-		addBlockPath(path);
+		add_blockpath(path);
 	}
 
 	unsigned long nRemaining = 0;
@@ -422,7 +463,7 @@ error::code psdl::ReadFile(const char *pathname)
 
 	while (data = f.get() != EOF)
 	{
-		m_aJunk.push_back(data);
+		_junk.push_back(data);
 		nRemaining++;
 	}
 
@@ -432,280 +473,257 @@ error::code psdl::ReadFile(const char *pathname)
 //	ATLTRACE("Testing vertex %x: %f, %f, %f\n",
 //		nRand, getVertex(nRand).x, getVertex(nRand).y, getVertex(nRand).z);
 
+	ATLTRACE("\nTime: %d", clock() - start_time);
+
 	return error::ok;
 }
 
-bool psdl::WriteFile(const char *pathname)
+error::code psdl::write_file(const char* filename)
 {
-/*	unsigned long i = 0, nSize = 0;
+	unsigned long i = 0, n_size = 0;
 
-	FILE *f = fopen(pathname, "wb");
+	ofstream f(filename, ios::out | ios::binary);
 
-	if (!f) return 0;
+	if (!f.is_open()) return error::cant_open;
 
-	ATLTRACE("\nWriting file: %s\n", pathname);
+	ATLTRACE("\nWriting file: %s\n", filename);
 
-	fputs("PSD0", f);
-	unsigned long nTargetSize = 2;
-	fwrite(&nTargetSize, 4);
+	f.write("PSD0", 4);
+	unsigned long n_target_size = 2;
+	f.write((char*) &n_target_size, 4);
 
-	nSize = numVertices();
-	fwrite(&nSize, 4);
-	Vertex vertex;
-	for (i = 0; i < nSize; i++)
+	n_size = num_vertices();
+	f.write((char*) &n_size, 4);
+
+	for (i = 0; i < n_size; i++)
 	{
-		vertex = getVertex(i);
-		fwrite(&vertex, sizeof(vertex));
+		f.write((char*) &_vertices[i], sizeof(vertex));
 	}
 
-	nSize = numHeights();
-	fwrite(&nSize, 4);
-	float height;
-	for (i = 0; i < nSize; i++)
+	n_size = num_heights();
+	f.write((char*) &n_size, 4);
+
+	for (i = 0; i < n_size; i++)
 	{
-		height = getHeight(i);
-		fwrite(&height, sizeof(height));
+		f.write((char*) &_heights[i], sizeof(float));
 	}
 
-	nSize = numTextures() + 1;
-	fwrite(&nSize, 4);
-	unsigned char nLength = 0;
-	for (i = 0; i < nSize - 1; i++)
-	{
-		char *textureName = getTextureName(i);
-		nLength = strlen(textureName) + 1;
+	n_size = num_textures() + 1;
+	f.write((char*) &n_size, 4);
 
-		if (nLength > 1)
+	unsigned char n_length;
+	for (i = 0; i < n_size - 1; i++)
+	{
+		char* texname = _textures[i];
+		n_length = strlen(texname) + 1;
+
+		if (n_length > 1)
 		{
-			fwrite(&nLength, 1);
-			fwrite(textureName, 1, nLength, f);
+			f.write((char*) &n_length, 1);
+			f.write(texname, n_length);
 		}
 		else
 		{
-			fputc(0, f);
+			f.put(0);
 		}
 	}
 
-	nSize = numBlocks() + 1;
-	fwrite(&nSize, 4);
-	fwrite(&m_lUnknown0, 4);
-//	ATLTRACE("Number of blocks: 0x%x\n", nSize);
-	nSize--;
-	for (i = 0; i < nSize; i++)
+	n_size = num_blocks() + 1;
+	f.write((char*) &n_size, 4);
+	f.write((char*) &_unknown0, 4);
+	n_size--;
+
+	for (i = 0; i < n_size; i++)
 	{
-		Block *block = getBlock(i);
+		block* block = &_blocks[i];
 
-		unsigned long j = 0, nPerimeterPoints = 0, nAttributeSize = 0, nAttributes = 0;
+		unsigned long j = 0, n_perimeters = 0, n_attributesize = 0, n_attributes = 0;
 
-		nPerimeterPoints = block->numPerimeterPoints();
-		fwrite(&nPerimeterPoints, 4);
-		nAttributeSize = block->getAttributeSize();
-		fwrite(&nAttributeSize, 4);
+		n_perimeters = block->num_perimeters();
+		f.write((char*) &n_perimeters, 4);
 
-		for (j = 0; j < nPerimeterPoints; j++)
+		n_attributesize = block->attributesize;
+		f.write((char*) &n_attributesize, 4);
+
+		for (j = 0; j < n_perimeters; j++)
 		{
-			perimeter_pt point = *block->getPerimeterPoint(j);
-			fwrite(&point, sizeof(point));
+			perimeter_pt pp = block->_perimeter[j];
+			f.write((char*) &pp, sizeof(perimeter_pt));
 		}
 
-		nAttributes = block->numAttributes();
-		if (nAttributes == 0) continue;
+		n_attributes = block->num_attributes();
+		if (n_attributes == 0) continue;
 
 	//	long targetPos = ftell(f) + 2 * nAttributeSize;
 		j = 0;
 
-		while (j < nAttributes)
+		while (j < n_attributes)
 		{
-			unsigned char id = 0, last = 0, type = 0, subtype = 0;
-			Attribute *atb = block->getAttribute(j);
+			unsigned short id = 0;
+			unsigned char type = 0, subtype = 0;
+			bool last = false;
+
+			attribute *atb = block->_attributes[j];
 
 		//	ATLTRACE("Block %x: writing attribute %x ...\n", i, j);
 
-			id = atb->id;
-			fwrite(&id, 1);
-			fputc(0, f);
+			last	= atb->last;
+			type	= atb->type;
+			subtype	= atb->subtype;
 
-			last	= atb->id >> 7 & 1;
-			type	= atb->type();
-			subtype	= atb->subtype();
+			id = last << 7 | type << 3 | subtype;
+
+			f.write((char*) &id, 2);
 
 			unsigned short k;
 
 			switch (type)
 			{
-				case 0x0:	static_cast<RoadStrip*>(atb)->writeToFile(f);		break;
-				case 0x1:	static_cast<SidewalkStrip*>(atb)->writeToFile(f);	break;
-				case 0x2:	static_cast<RectangleStrip*>(atb)->writeToFile(f);	break;
+				case 0x0: static_cast<road_strip*>(atb)->f_write(f);      break;
+				case 0x1: static_cast<sidewalk_strip*>(atb)->f_write(f);  break;
+				case 0x2: static_cast<rectangle_strip*>(atb)->f_write(f); break;
 
 				case 0x3:
-					fwrite(&static_cast<Sliver*>(atb)->top,				2);
-					fwrite(&static_cast<Sliver*>(atb)->textureScale,	2);
-					fwrite(&static_cast<Sliver*>(atb)->left,			2);
-					fwrite(&static_cast<Sliver*>(atb)->right,			2);
+					f.write((char*) &static_cast<sliver*>(atb)->top,       2);
+					f.write((char*) &static_cast<sliver*>(atb)->tex_scale, 2);
+					f.write((char*) &static_cast<sliver*>(atb)->left,      2);
+					f.write((char*) &static_cast<sliver*>(atb)->right,     2);
 					break;
 
 				case 0x4:
 					for (k = 0; k < 4; k++)
-						fwrite(&static_cast<Crosswalk*>(atb)->vertexRefs[k], 2);
+						f.write((char*) &static_cast<crosswalk*>(atb)->_i_vertices[k], 2);
 					break;
 
-				case 0x5:	static_cast<RoadTriangleFan*>(atb)->writeToFile(f);	break;
-				case 0x6:	static_cast<TriangleFan*>(atb)->writeToFile(f);		break;
+				case 0x5: static_cast<road_triangle_fan*>(atb)->f_write(f); break;
+				case 0x6: static_cast<triangle_fan*>(atb)->f_write(f);      break;
 
 				case 0x7:
-					fwrite(&static_cast<FacadeBound*>(atb)->angle,	2);
-					fwrite(&static_cast<FacadeBound*>(atb)->top,	2);
-					fwrite(&static_cast<FacadeBound*>(atb)->left,	2);
-					fwrite(&static_cast<FacadeBound*>(atb)->right,	2);
+					f.write((char*) &static_cast<facade_bound*>(atb)->angle, 2);
+					f.write((char*) &static_cast<facade_bound*>(atb)->top,   2);
+					f.write((char*) &static_cast<facade_bound*>(atb)->left,  2);
+					f.write((char*) &static_cast<facade_bound*>(atb)->right, 2);
 					break;
 
-				case 0x8:	static_cast<DividedRoadStrip*>(atb)->writeToFile(f);	break;
+				case 0x8: static_cast<divided_road_strip*>(atb)->f_write(f); break;
 
 				case 0x9:
 					if (subtype)
 					{
-						fwrite(&static_cast<Tunnel*>(atb)->flags,	2);
-						fwrite(&static_cast<Tunnel*>(atb)->height1,	2);
+						f.write((char*) &static_cast<tunnel*>(atb)->flags,   2);
+						f.write((char*) &static_cast<tunnel*>(atb)->height1, 2);
 
 						if (subtype > 2)
-							fwrite(&static_cast<Tunnel*>(atb)->height2, 2);
+							f.write((char*) &static_cast<tunnel*>(atb)->height2, 2);
 					}
 					else
 					{
-						unsigned char bState;
-						unsigned short nLength = static_cast<Junction*>(atb)->numWalls() / 2 + 4;
+						unsigned short n_length =
+							static_cast<junction*>(atb)->_enabled_walls.size() / 2 + 4;
 
-						fwrite(&nLength,								2,	1, f);
-						fwrite(&static_cast<Junction*>(atb)->flags,		2,	1, f);
-						fwrite(&static_cast<Junction*>(atb)->height1,	2,	1, f);
-						fwrite(&static_cast<Junction*>(atb)->height2,	2,	1, f);
-						fwrite(&static_cast<Junction*>(atb)->unknown3,	2,	1, f);
+						ATLTRACE("Tunnel: %d bytes\n", n_length);
 
-						for (k = 0; k < static_cast<Junction*>(atb)->numWalls(); k++)
-						{
-							bState = static_cast<Junction*>(atb)->getWall(k);
-							fwrite(&bState, 1);
-						}
+						f.write((char*) &n_length,                              2);
+						f.write((char*) &static_cast<junction*>(atb)->flags,    2);
+						f.write((char*) &static_cast<junction*>(atb)->height1,  2);
+						f.write((char*) &static_cast<junction*>(atb)->height2,  2);
+						f.write((char*) &static_cast<junction*>(atb)->unknown3, 2);
+
+						n_length = 2 * (n_length - 4);
+						f.write((char*) &static_cast<junction*>(atb)->_enabled_walls[0], n_length);
 					}
 					break;
 
 				case 0xa:
 					{
-						unsigned short textureRef = static_cast<Texture*>(atb)->textureRef
-							+ 1 - (256 * subtype);
-						fwrite(&textureRef, 2);
+						unsigned short tex_ref =
+							static_cast<texture*>(atb)->i_texture + 1 - (256 * subtype);
+
+						f.write((char*) &tex_ref, 2);
 					}
 					break;
 
 				case 0xb:
-					fwrite(&static_cast<Facade*>(atb)->bottom,	2);
-					fwrite(&static_cast<Facade*>(atb)->top,		2);
-					fwrite(&static_cast<Facade*>(atb)->uRepeat,	2);
-					fwrite(&static_cast<Facade*>(atb)->vRepeat,	2);
-					fwrite(&static_cast<Facade*>(atb)->left,	2);
-					fwrite(&static_cast<Facade*>(atb)->right,	2);
+					f.write((char*) &static_cast<facade*>(atb)->bottom,   2);
+					f.write((char*) &static_cast<facade*>(atb)->top,      2);
+					f.write((char*) &static_cast<facade*>(atb)->u_repeat, 2);
+					f.write((char*) &static_cast<facade*>(atb)->v_repeat, 2);
+					f.write((char*) &static_cast<facade*>(atb)->left,     2);
+					f.write((char*) &static_cast<facade*>(atb)->right,    2);
 					break;
 
 				case 0xc:
-					static_cast<RoofTriangleFan*>(atb)->writeToFile(f); break;
+					static_cast<roof_triangle_fan*>(atb)->f_write(f); break;
 			}
 
-		//	if (last) break;
 			j++;
 		}
 
-		ATLTRACE("Block %x: done!\n", i);
+	//	ATLTRACE("Block %x: done!\n", i);
 	}
 
-	fputc(0x00, f);
+	f.put(_unknown1);
 
-	for (i = 0; i < nSize; i++)
+	for (i = 0; i < n_size; i++)
 	{
-		unsigned char bType = m_aBlocks[i].getType();
-		fwrite(&bType, 1);
+		f.write((char*) &_blocks[i].type, 1);
 	}
 
-	fputc(0xcd, f);
+	f.put(_unknown2);
 
-	for (i = 0; i < nSize; i++)
+	for (i = 0; i < n_size; i++)
 	{
-		unsigned char bProp = m_aBlocks[i].getPropRule();
-		fwrite(&bProp, 1);
+		f.write((char*) &_blocks[i].proprule, 1);
 	}
 
-	fwrite(&m_vMin,		sizeof(Vertex),	1, f);
-	fwrite(&m_vMax,		sizeof(Vertex),	1, f);
-	fwrite(&m_vCenter,	sizeof(Vertex),	1, f);
-	fwrite(&m_fRadius,	4,	1, f);
+	f.write((char*) &v_min,    sizeof(vertex));
+	f.write((char*) &v_max,    sizeof(vertex));
+	f.write((char*) &v_center, sizeof(vertex));
+	f.write((char*) &f_radius, 4);
 
-	unsigned char l;
-	unsigned short j, nRoadBlock;
-	float fDensity;
-	BlockPath *path;
+	n_size = num_blockpaths();
+	f.write((char*) &n_size, 4);
+	ATLTRACE("Number of blockpaths: 0x%x\n", n_size);
 
-	nSize = numBlockPaths();
-	fwrite(&nSize, 4);
-	ATLTRACE("Number of blockpaths: 0x%x\n", nSize);
-
-	for (i = 0; i < nSize; i++)
+	for (i = 0; i < n_size; i++)
 	{
-		path = getBlockPath(i);
+		blockpath* path = &_blockpaths[i];
 
-		fwrite(&path->unknown4,	2,	1, f);
-		fwrite(&path->unknown5,	2,	1, f);
-		fwrite(&path->nFLanes,	1,	1, f);
-		fwrite(&path->nBLanes,	1,	1, f);
+		f.write((char*) &path->unknown4, 2);
+		f.write((char*) &path->unknown5, 2);
+		f.write((char*) &path->nFLanes,  1);
+		f.write((char*) &path->nBLanes,  1);
 
-		for (j = 0; j < path->nFLanes + path->nBLanes; j++)
-		{
-			fDensity = path->density[j];
-			fwrite(&fDensity, 4);
-		}
+		for (unsigned short j = 0; j < path->nFLanes + path->nBLanes; j++)
+			f.write((char*) &path->density[j], 4);
 
-		fwrite(&path->unknown6, 2);
+		f.write((char*) &path->unknown6, 2);
+
+		unsigned char l;
 
 		for (l = 0; l < 4; l++)
-			fwrite(&path->startCrossroads[l], 2);
+			f.write((char*) &path->startCrossroads[l], 2);
 
 		for (l = 0; l < 4; l++)
-			fwrite(&path->endCrossroads[l], 2);
+			f.write((char*) &path->endCrossroads[l], 2);
 
-		fwrite(&path->nRoadBlocks, 1);
+		f.write((char*) &path->nRoadBlocks, 1);
 
 		for (l = 0; l < path->nRoadBlocks; l++)
 		{
-			nRoadBlock = path->roadBlocks[l];
-			fwrite(&nRoadBlock, 2);
+			f.write((char*) &path->roadBlocks[l], 2);
 		}
 	}
 
-	for (i = 0; i < m_aJunk.size(); i++)
-	{
-		fputc(m_aJunk[i], f);
-	}
-*/
-	return 1;
+	if (!_junk.empty())
+		f.write((char*) _junk[0], _junk.size());
+
+	return error::ok;
 }
 
-psdl::attribute *psdl::block::get_attribute(unsigned long nIndex)
+psdl::attribute* psdl::block::get_attribute(unsigned long i_pos)
 {
-	if (nIndex < m_attributes.size())
-		return m_attributes[nIndex];
+	if (i_pos < _attributes.size())
+		return _attributes[i_pos];
 	return 0;
-}
-
-unsigned char psdl::block::getType(void)
-{
-	return m_bType;
-}
-
-void psdl::block::setType(unsigned char bType)
-{
-	m_bType = bType;
-
-//	CString sIndex;
-//	unsigned long nIndex = m_owner->GetBlockIndex(this);
-
-//	sIndex.Format("%x", GetType());
-//	g_blocks.list().SetItem(nIndex, 1, LVIF_TEXT, GetTypeString(), 0, 0, 0, 0);
 }

@@ -17,11 +17,11 @@ public:
 
 	void RenderScene(HDC hDC, HGLRC hRC)
 	{
-		for (size_t i = 0; i < m_pDoc->numBlocks(); i++)
+		for (size_t i = 0; i < m_pDoc->num_blocks(); i++)
 		{
 			psdl::block* block = m_pDoc->get_block(i);
 
-			for (size_t j = 0; j < block->numAttributes(); j++)
+			for (size_t j = 0; j < block->num_attributes(); j++)
 			{
 				psdl::attribute* atb = block->get_attribute(j);
 
