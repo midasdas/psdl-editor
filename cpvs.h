@@ -2,12 +2,13 @@
 #define __CPVS_H__
 
 #include "io_error.h"
-#include <vector>
 
-class CPVS
+class cpvs
 {
 public:
 
+	error::code read_file (const char* filename);
+	error::code write_file(const char* filename);
 };
 
 #endif

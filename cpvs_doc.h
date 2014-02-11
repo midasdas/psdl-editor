@@ -6,11 +6,11 @@
 #include "cpvs_view.h"
 #include "toolwnd.h"
 
-class CPVSDocTemplate : public DocTemplate<CPVS, CPVSView>
+class CPVSDocTemplate : public DocTemplate<cpvs, CPVSView>
 {
 private:
 
-	typedef DocTemplate<CPVS, CPVSView> baseClass;
+	typedef DocTemplate<cpvs, CPVSView> baseClass;
 
 	CBlocksWindow*		m_pBlocksWindow;
 
