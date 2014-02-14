@@ -3,12 +3,14 @@
 
 namespace error
 {
-	enum code
-	{
-		ok = 0,
-		cant_open = 1,
-		wrong_format
-	};
+	typedef int code;
+
+	const code ok               = 0x1;
+	const code cant_open        = 0x2;
+	const code wrong_format     = 0x4;
+
+	const code cpvs_less_blocks = 0x8;
+	const code cpvs_more_blocks = 0x10;
 };
 
 #endif

@@ -102,6 +102,7 @@ public:
 
 	LRESULT OnAppAbout				(WORD, WORD, HWND, BOOL&);
 
+	void UpdateCaption(void);
 	void SetEditingMode(int iMode);
 	void SelectBlock(long iIndex);
 	void SelectAttribute(psdl::block* pBlock, long iIndex);

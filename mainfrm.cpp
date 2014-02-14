@@ -38,9 +38,9 @@ BOOL CMainFrame::OnIdle()
 	UIEnable(ID_EDIT_UNDO, CanUndo());
 	UIEnable(ID_EDIT_REDO, CanRedo());
 
-	UISetCheck(ID_WINDOWS_CITYBLOCKS,	::IsWindowVisible(m_wndBlocks));
-	UISetCheck(ID_WINDOWS_ATTRIBUTES,	::IsWindowVisible(m_wndAttribs));
-	UISetCheck(ID_WINDOWS_PROPERTIES,	::IsWindowVisible(m_wndProps));
+	UISetCheck(ID_WINDOWS_CITYBLOCKS, ::IsWindowVisible(m_wndBlocks));
+	UISetCheck(ID_WINDOWS_ATTRIBUTES, ::IsWindowVisible(m_wndAttribs));
+	UISetCheck(ID_WINDOWS_PROPERTIES, ::IsWindowVisible(m_wndProps));
 
 	return FALSE;
 }
@@ -53,6 +53,21 @@ LRESULT CMainFrame::OnDestroy(UINT, WPARAM, LPARAM, BOOL& bHandled)
 
 LRESULT CMainFrame::OnCreate(UINT, WPARAM, LPARAM, BOOL&)
 {
+	glClearColor(0.f, 0.f, 0.f, 1.f);
+
+	PIXELFORMATDESCRIPTOR pfd =
+	{
+		sizeof(PIXELFORMATDESCRIPTOR), 1,
+		PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER,
+		PFD_TYPE_RGBA,
+		32,// Color depth
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		24,// Size of depth buffer
+		0, 0,
+		PFD_MAIN_PLANE,
+		0, 0, 0, 0
+	};
+
 	CreateSimpleToolBar();
 	CToolBarCtrl tool = m_hWndToolBar;
 	tool.SetStyle(tool.GetStyle() | TBSTYLE_FLAT);
@@ -62,14 +77,12 @@ LRESULT CMainFrame::OnCreate(UINT, WPARAM, LPARAM, BOOL&)
 	UIAddMenuBar(m_hWnd);
 	UIAddToolBar(m_hWndToolBar);
 
-//	UIEnable(ID_MODE_CPVS, 0);
-//	UIEnable(ID_MODE_INST, 0);
-//	UIEnable(ID_MODE_BAI, 0);
-//	UIEnable(ID_MODE_PATHSET, 0);
 	UISetCheck(ID_VIEW_TOOLBAR, 1);
 	UISetCheck(ID_VIEW_STATUS_BAR, 1);
 
 	m_hWndClient = m_view.Create(m_hWnd, rcDefault, NULL, WS_CHILD | WS_VISIBLE, WS_EX_CLIENTEDGE);
+	m_view.SetDCPixelFormat(&pfd);
+	m_view.SetFocus();
 
 	// Initiate docking framework
 	HWND hwndDock = m_dock.Create(m_hWnd, rcDefault);
@@ -98,25 +111,10 @@ LRESULT CMainFrame::OnCreate(UINT, WPARAM, LPARAM, BOOL&)
 	m_cpvsDoc.SetViews(&m_wndBlocks);
 	m_psdlDoc.NewDocument();
 	m_cpvsDoc.NewDocument();
+	m_cpvsDoc.SetPSDL(m_psdlDoc.GetDocument());
+
 	SetEditingMode(ID_MODE_PSDL);
-
-	PIXELFORMATDESCRIPTOR pfd =
-	{
-		sizeof(PIXELFORMATDESCRIPTOR), 1,
-		PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER,
-		PFD_TYPE_RGBA,
-		32,// Color depth
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		24,// Size of depth buffer
-		0, 0,
-		PFD_MAIN_PLANE,
-		0, 0, 0, 0
-	};
-
-	m_view.SetDCPixelFormat(&pfd);
-	m_view.SetFocus();
-
-	glClearColor(0.f, 0.f, 0.f, 1.f);
+	UpdateCaption();
 
 	// register object for message filtering and idle updates
 	CMessageLoop* pLoop = _Module.GetMessageLoop();
@@ -132,6 +130,7 @@ LRESULT CMainFrame::OnPaintDescendants(UINT, WPARAM wParam, LPARAM lParam, BOOL&
 	HGLRC hRC = (HGLRC) lParam;
 
 	m_psdlDoc.RenderScene(hDC, hRC);
+	m_cpvsDoc.RenderScene(hDC, hRC);
 
 	return 0;
 }
@@ -182,11 +181,27 @@ LRESULT CMainFrame::OnViewBar(WORD, WORD wID, HWND, BOOL&)
 void CMainFrame::SelectBlock(long iIndex)
 {
 	m_psdlDoc.SelectBlock(iIndex);
+	m_cpvsDoc.SelectBlock(iIndex);
+
+	m_view.Invalidate();
 }
 
 void CMainFrame::SelectAttribute(psdl::block* pBlock, long iIndex)
 {
 	m_wndProps.SetAttribute(pBlock->get_attribute(iIndex));
+}
+
+void CMainFrame::UpdateCaption(void)
+{
+	DocTemplateBase* pDoc = GetActiveDocument();
+
+	CString strTitle = _T("");
+
+	if (pDoc)
+		strTitle = (CString) " - [" + pDoc->GetFileName().c_str()
+		           + (pDoc->IsModified() ? " *" : "") + "]";
+
+	SetWindowText(LS(IDR_MAINFRAME) + strTitle);
 }
 
 void CMainFrame::SetEditingMode(int iMode)
@@ -195,20 +210,12 @@ void CMainFrame::SetEditingMode(int iMode)
 	UISetCheck(iMode, 1);
 
 	m_iEditMode = iMode;
-
-	DocTemplateBase* pDoc = GetActiveDocument();
-
-	CString sTitle = _T("");
-
-	if (pDoc)
-		sTitle.Format(" - [%s]", pDoc->GetFileName().c_str());
-
-	SetWindowText(LS(IDR_MAINFRAME) + sTitle);
 }
 
 LRESULT CMainFrame::OnSetEditingMode(WORD, WORD wID, HWND, BOOL&)
 {
 	SetEditingMode(wID);
+	UpdateCaption();
 	return 0;
 }
 
@@ -223,6 +230,7 @@ LRESULT CMainFrame::OnInsertBlock(WORD, WORD wID, HWND, BOOL&)
 	m_psdlDoc.m_bModified = true;
 
 	AddHistoryState(wID);
+	UpdateCaption();
 	return 0;
 }
 
@@ -347,6 +355,7 @@ LRESULT CMainFrame::OnDuplicateBlock(WORD, WORD wID, HWND, BOOL&)
 
 	m_psdlDoc.m_bModified = true;
 	AddHistoryState(wID);
+	UpdateCaption();
 	return 0;
 }
 
@@ -583,6 +592,7 @@ LRESULT CMainFrame::OnFileNew(WORD wNotifyCode, WORD wID, HWND hWndCtl, BOOL& bH
 	{
 		case ID_FILE_NEW_PSDL:
 			m_psdlDoc.NewDocument();
+			m_cpvsDoc.SetPSDL(m_psdlDoc.GetDocument());
 			SetEditingMode(ID_MODE_PSDL);
 			break;
 
@@ -590,8 +600,14 @@ LRESULT CMainFrame::OnFileNew(WORD wNotifyCode, WORD wID, HWND hWndCtl, BOOL& bH
 			m_cpvsDoc.NewDocument();
 			SetEditingMode(ID_MODE_CPVS);
 			break;
+
+		case ID_FILE_NEW_WORKSPACE:
+			m_psdlDoc.NewDocument();
+			m_cpvsDoc.NewDocument();
+			break;
 	}
 
+	UpdateCaption();
 	m_view.Invalidate();
 	return 0;
 }
@@ -660,13 +676,26 @@ LRESULT CMainFrame::OnFileOpen(WORD, WORD, HWND, BOOL& bHandled)
 		{
 			error::code code = pDoc->OpenDocument(fDlg.GetPathName());
 
-			if (code == error::ok)
+			if (code & error::ok)
 			{
+				if (code != error::ok) // additional warnings
+				{
+					if (code & error::cpvs_less_blocks)
+						MessageBox("The CPVS file contains less blocks than the PSDL file currently loaded.\nBlocks will be added to match the size.", LS(IDR_MAINFRAME), MB_ICONINFORMATION);
+
+					else if (code & error::cpvs_more_blocks)
+						MessageBox("The CPVS file contains more blocks than the PSDL file currently loaded.\nBlocks will be removed to match the size.", LS(IDR_MAINFRAME), MB_ICONINFORMATION);
+				}
+
+				if (iMode == ID_MODE_PSDL)
+					m_cpvsDoc.SetPSDL(m_psdlDoc.GetDocument());
+
 				SetEditingMode(iMode);
+				UpdateCaption();
 				m_view.Invalidate();
 				m_view.SetFocus();
 			}
-			else if (code == error::wrong_format)
+			else if (code & error::wrong_format)
 			{
 				CString strErr = _T("Error");
 
@@ -701,7 +730,7 @@ LRESULT CMainFrame::OnFileSaveAs(WORD, WORD, HWND, BOOL&)
 {
 	CString sSelectedFile;
 
-	CCenterFileDialog fDlg(FALSE, _T("psdl"), NULL, OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, _T("\
+	CCenterFileDialog fDlg(FALSE, _T("psdl"), GetActiveDocument()->GetFileName().c_str(), OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, _T("\
 		MM2 City Geometry (*.psdl; *.psd)\0*.psdl; *.psd\0")
 	);
 
@@ -709,7 +738,7 @@ LRESULT CMainFrame::OnFileSaveAs(WORD, WORD, HWND, BOOL&)
 	{
 		if (m_psdlDoc.SaveDocument(fDlg.GetPathName()) == error::ok)
 		{
-			SetEditingMode(ID_MODE_PSDL);
+			UpdateCaption();
 		}
 		else
 		{
@@ -749,7 +778,11 @@ LRESULT CMainFrame::OnFileSave(WORD, WORD, HWND, BOOL& bHandled)
 	if (!GetActiveDocument()->FileExists())
 		return OnFileSaveAs(NULL, NULL, NULL, bHandled);
 
-	if (GetActiveDocument()->SaveDocument() != error::ok)
+	if (GetActiveDocument()->SaveDocument() == error::ok)
+	{
+		UpdateCaption();
+	}
+	else
 	{
 		DWORD dwErrorCode = GetLastError();
 		LPTSTR lpMsg = NULL;

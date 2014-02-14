@@ -17,13 +17,6 @@ long psdl::getBlockIndex(psdl::block* block)
 	return -1;
 }
 
-/*typedef struct
-{
-	unsigned short i_vertex;
-	unsigned short i_block;
-}
-perimeter_pt_i;*/
-
 error::code psdl::read_file(const char* filename)
 {
 	clock_t start_time = clock();
