@@ -5,7 +5,6 @@
 #include "psdl.h"
 
 #include <gl\gl.h>
-#include <gl\glut.h>
 
 class PSDLView : public View<psdl>
 {

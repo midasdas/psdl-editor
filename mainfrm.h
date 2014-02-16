@@ -14,6 +14,16 @@
 #include "include/atldock.h"
 #include "include/atldock2.h"
 
+#define PD_NUM_EXTENSIONS 6
+
+typedef struct
+{
+	const char* strExt;
+	DocTemplateBase* pDocTmpl;
+	int iEditMode;
+}
+extMap;
+
 class CMainFrame :
 	public CFrameWindowImpl<CMainFrame>,
 	public CUpdateUI<CMainFrame>,
@@ -118,8 +128,8 @@ private:
 
 	int m_iEditMode;
 
-	PSDLDocTemplate m_psdlDoc;
-	CPVSDocTemplate m_cpvsDoc;
+	static PSDLDocTemplate m_psdlDoc;
+	static CPVSDocTemplate m_cpvsDoc;
 
 	COpenGLView m_view;
 	CFlatDockingWindow m_dock;
@@ -128,6 +138,8 @@ private:
 	CPerimeterWindow	m_wndPerimeter;
 	CAttributesWindow	m_wndAttribs;
 	CPropertiesWindow	m_wndProps;
+
+	static const extMap m_sExtMap[PD_NUM_EXTENSIONS];
 };
 
 #endif

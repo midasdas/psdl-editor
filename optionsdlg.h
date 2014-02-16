@@ -2,9 +2,7 @@
 #define __OPTIONSDLG_H__
 
 #include "resource.h"
-#include "aboutdlg.h"
 #include "psdl-editor.h"
-//#include "dlgs.h"
 
 class CGeneralOptsPage :
 	public CDialogImpl<CGeneralOptsPage>,

@@ -1,18 +1,26 @@
 #include "stdafx.h"
 
-#include <math.h>
 #include <algorithm>
-#include <vector>
-#include <shlwapi.h>
 
 #include "mainfrm.h"
-#include "psdl-editor.h"
-#include "optionsdlg.h"
 #include "aboutdlg.h"
 #include "dialogs.h"
-#include "tools.h"
+#include "optionsdlg.h"
 
 using namespace std;
+
+PSDLDocTemplate CMainFrame::m_psdlDoc;
+CPVSDocTemplate CMainFrame::m_cpvsDoc;
+
+const extMap CMainFrame::m_sExtMap[] =
+{
+	{ "psdl",    &m_psdlDoc, ID_MODE_PSDL    },
+	{ "psd",     &m_psdlDoc, ID_MODE_PSDL    },
+	{ "cpvs",    &m_cpvsDoc, ID_MODE_CPVS    },
+	{ "inst",    NULL,       ID_MODE_INST    },
+	{ "bai",     NULL,       ID_MODE_BAI     },
+	{ "pathset", NULL,       ID_MODE_PATHSET }
+};
 
 BOOL CMainFrame::PreTranslateMessage(MSG* pMsg)
 {
@@ -651,24 +659,12 @@ LRESULT CMainFrame::OnFileOpen(WORD, WORD, HWND, BOOL& bHandled)
 		DocTemplateBase* pDoc = NULL;
 		int iMode = -1;
 
-		struct extMap { const char* strExt; DocTemplateBase* pDocTmpl; int iEditMode; };
-
-		extMap map[6] =
+		for (int i = 0; i < PD_NUM_EXTENSIONS; i++)
 		{
-			{ "psdl",    &m_psdlDoc, ID_MODE_PSDL    },
-			{ "psd",     &m_psdlDoc, ID_MODE_PSDL    },
-			{ "cpvs",    &m_cpvsDoc, ID_MODE_CPVS    },
-			{ "inst",    NULL,       ID_MODE_INST    },
-			{ "bai",     NULL,       ID_MODE_BAI     },
-			{ "pathset", NULL,       ID_MODE_PATHSET }
-		};
-
-		for (int i = 0; i < 6; i++)
-		{
-			if (!strcmpi(strExtension, map[i].strExt))
+			if (!strcmpi(strExtension, m_sExtMap[i].strExt))
 			{
-				iMode = map[i].iEditMode;
-				pDoc  = map[i].pDocTmpl;
+				iMode = m_sExtMap[i].iEditMode;
+				pDoc  = m_sExtMap[i].pDocTmpl;
 			}
 		}
 
