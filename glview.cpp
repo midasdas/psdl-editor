@@ -1,6 +1,11 @@
 #include "stdafx.h"
 #include "glview.h"
 
+#include "tools.h"
+
+#include <math.h>
+#include <gl\glu.h>
+
 void COpenGLView::RenderAxes(void)
 {
 	glBegin(GL_LINES);
@@ -50,9 +55,19 @@ LRESULT COpenGLView::OnPaint(UINT, WPARAM, LPARAM, BOOL&)
 
 	glPushMatrix();
 		glTranslatef(0.f, 0.f, -200.f);
+
 		glRotatef(xRot, 1.f, 0.f, 0.f);
 		glRotatef(yRot, 0.f, 1.f, 0.f);
-		glScalef(.3f, .3f, .3f);
+		glTranslatef(xPos, yPos, zPos);
+
+	//	glRotatef(-xRot, 1.f, 0.f, 0.f);
+	//	glRotatef(-yRot, 0.f, 1.f, 0.f);
+	//	glMultMatrixf(translationMatrix);
+
+	//	glTranslatef(0.f, 0.f, (float) sin(yRot / 180 * PI) * xPos);
+	//	glTranslatef(-200.f, 0.f, 0.f);
+
+		glScalef(.5f, .5f, .5f);
 		::SendMessage(GetParent(), WM_PAINT_DESCENDANTS, (WPARAM) m_hDC, (LPARAM) m_hRC);
 	glPopMatrix();
 
@@ -83,9 +98,9 @@ LRESULT COpenGLView::OnSize(UINT, WPARAM, LPARAM lParam, BOOL& bHandled)
 
 LRESULT COpenGLView::OnKeyDown(UINT, WPARAM wParam, LPARAM, BOOL&)
 {
-	GLfloat fAdd = 5.0f;
+	GLfloat fAdd = 3.0f;
 
-	if (KEYDOWN(VK_SHIFT))	fAdd *= 3;
+	if (KEYDOWN(VK_SHIFT)) fAdd *= 2;
 
 	switch (wParam)
 	{
@@ -99,6 +114,71 @@ LRESULT COpenGLView::OnKeyDown(UINT, WPARAM wParam, LPARAM, BOOL&)
 	yRot = GLfloat((const int) yRot % 360);
 
 	Invalidate(TRUE);
+
+	return 0;
+}
+
+LRESULT COpenGLView::OnMouseDown(UINT, WPARAM, LPARAM lParam, BOOL&)
+{
+	xMouseDrag = LOWORD(lParam);
+	yMouseDrag = HIWORD(lParam);
+
+	xRotDrag = xRot;
+	yRotDrag = yRot;
+
+	xPosDrag = xPos;
+	yPosDrag = yPos;
+	zPosDrag = zPos;
+
+	SetCapture();
+	return 0;
+}
+
+LRESULT COpenGLView::OnMouseUpL(UINT, WPARAM, LPARAM lParam, BOOL&)
+{
+	ReleaseCapture();
+	return 0;
+}
+
+LRESULT COpenGLView::OnMouseUpR(UINT, WPARAM, LPARAM lParam, BOOL&)
+{
+	xMouseDrag = LOWORD(lParam);
+	yMouseDrag = HIWORD(lParam);
+
+	xRotDrag = xRot;
+	yRotDrag = yRot;
+	return 0;
+}
+
+LRESULT COpenGLView::OnMouseMove(UINT, WPARAM wParam, LPARAM lParam, BOOL&)
+{
+	if (KEYDOWN(VK_MENU)) // ALT key
+	{
+		if (wParam & MK_LBUTTON)
+		{
+			int xMouse = GET_X_LPARAM(lParam);
+			int yMouse = GET_Y_LPARAM(lParam);
+
+			if (wParam & MK_RBUTTON)
+			{
+				xPos -= xPosDrag + (xMouse - xMouseDrag) / nWidth * 360.f * (GLfloat) cos(yRot / 180 * PI);
+				zPos -= yPosDrag + (yMouse - yMouseDrag) / nHeight * 360.f * (GLfloat) sin(yRot / 180 * PI);
+			//	zPos = zPosDrag + (yMouse - yMouseDrag) / nHeight * 360.f;
+			//	glTranslatef((xMouse - xMouseDrag) / nWidth * 360.f, 0.f, 0.f);
+			}
+			else
+			{
+				xRot = xRotDrag + (yMouse - yMouseDrag) / nHeight * 360.f;
+				yRot = yRotDrag + (xMouse - xMouseDrag) / nWidth * 360.f;
+
+				xRot = GLfloat((const int) xRot % 360);
+				yRot = GLfloat((const int) yRot % 360);
+			}
+
+			ATLTRACE("\nxPos: %f", xPos);
+			Invalidate(TRUE);
+		}
+	}
 
 	return 0;
 }

@@ -2,12 +2,25 @@
 #define __GLVIEW_H__
 
 #include <gl\gl.h>
-#include <gl\glu.h>
 
 #define WM_PAINT_DESCENDANTS WM_USER + 1
 
 #define KEYDOWN(vkey) (GetAsyncKeyState(vkey) & 0x8000)
 #define KEYUP(vkey) !KEYDOWN(vkey)
+
+typedef struct GLVector
+{
+	GLfloat x, y, z;
+	GLVector() : x(0), y(0), z(0) {}
+}
+GLVector;
+
+typedef struct GLPoint
+{
+	GLfloat x, y;
+	GLPoint() : x(0), y(0) {}
+}
+GLPoint;
 
 class COpenGLView : public CWindowImpl<COpenGLView>
 {
@@ -21,9 +34,14 @@ public:
 		MESSAGE_HANDLER(WM_ERASEBKGND, OnEraseBkgnd)
 		MESSAGE_HANDLER(WM_KEYDOWN, OnKeyDown);
 		MESSAGE_HANDLER(WM_MOUSEACTIVATE, OnMouseActivate);
+		MESSAGE_HANDLER(WM_MOUSEMOVE, OnMouseMove);
+		MESSAGE_HANDLER(WM_LBUTTONDOWN, OnMouseDown);
+		MESSAGE_HANDLER(WM_RBUTTONDOWN, OnMouseDown);
+		MESSAGE_HANDLER(WM_LBUTTONUP, OnMouseUpL);
+		MESSAGE_HANDLER(WM_RBUTTONUP, OnMouseUpR);
 	END_MSG_MAP()
 
-	COpenGLView() : nWidth(0), nHeight(0), dAspect(0), xRot(0), yRot(0) {}
+	COpenGLView() : nWidth(0), nHeight(0), dAspect(0), xPos(0), yPos(0), zPos(0), xRot(0), yRot(0) {}
 
 	void RenderAxes(void);
 
@@ -35,16 +53,51 @@ public:
 		ATLTRACE("\nPixel Format: %i", nPixelFormat);
 
 		m_hRC = wglCreateContext(m_hDC);
+
+		OnInitDone();
+	}
+
+	void OnInitDone(void)
+	{
+		wglMakeCurrent(m_hDC, m_hRC);
+
+		glMatrixMode(GL_MODELVIEW);
+		glLoadIdentity();
+		glGetFloatv(GL_MODELVIEW_MATRIX, translationMatrix);
+
+		wglMakeCurrent(NULL, NULL);
 	}
 
 	LRESULT OnPaint(UINT, WPARAM, LPARAM, BOOL&);
 	LRESULT OnSize(UINT, WPARAM, LPARAM, BOOL&);
 	LRESULT OnKeyDown(UINT, WPARAM wParam, LPARAM, BOOL&);
+	LRESULT OnMouseMove(UINT, WPARAM, LPARAM, BOOL&);
+	LRESULT OnMouseDown(UINT, WPARAM, LPARAM, BOOL&);
+	LRESULT OnMouseUpL(UINT, WPARAM, LPARAM, BOOL&);
+	LRESULT OnMouseUpR(UINT, WPARAM, LPARAM, BOOL&);
 
 	LRESULT OnCreate(UINT, WPARAM, LPARAM, BOOL& bHandled)
 	{
 		m_hDC = GetDC();
+
 		glEnable(GL_DEPTH_TEST);
+		glEnable(GL_LIGHTING);
+		glEnable(GL_NORMALIZE);
+
+		GLfloat ambientLight[] = { 0.3f, 0.3f, 0.3f, 1.0f };
+		GLfloat diffuseLight[] = { 0.7f, 0.7f, 0.7f, 1.0f };
+
+		glLightfv(GL_LIGHT0, GL_AMBIENT, ambientLight);
+		glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuseLight);
+
+		glEnable(GL_LIGHT0);
+
+		glEnable(GL_COLOR_MATERIAL);
+
+		glColorMaterial(GL_FRONT, GL_AMBIENT_AND_DIFFUSE);
+
+		glClearColor(0.f, 0.f, 0.f, 1.f);
+
 		return 0;
 	}
 
@@ -67,16 +120,24 @@ public:
 	}
 
 private:
+
 	HGLRC m_hRC;
 	HDC m_hDC;
+
+	GLdouble dAspect;
 
 	int nWidth;
 	int nHeight;
 
-	GLdouble dAspect;
+	GLfloat xMouseDrag, yMouseDrag;
 
-	GLfloat xRot;
-	GLfloat yRot;
+	GLfloat xPos, yPos, zPos;
+	GLfloat xRot, yRot;
+
+	GLfloat xPosDrag, yPosDrag, zPosDrag;
+	GLfloat xRotDrag, yRotDrag;
+
+	GLfloat translationMatrix[16];
 };
 
 #endif
