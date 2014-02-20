@@ -295,10 +295,14 @@ error::code psdl::read_file(const char* filename)
 							atb = new tunnel();
 
 							f.read((char*) &static_cast<tunnel*>(atb)->flags,	2);
-							f.read((char*) &static_cast<tunnel*>(atb)->height1,	2);
+							f.get();
+							f.read((char*) &static_cast<tunnel*>(atb)->height1,	1);
 
 							if (subtype > 2)
-								f.read((char*) &static_cast<tunnel*>(atb)->height2, 2);
+							{
+								f.get();
+								f.read((char*) &static_cast<tunnel*>(atb)->height2, 1);
+							}
 						}
 						else
 						{
@@ -307,8 +311,10 @@ error::code psdl::read_file(const char* filename)
 
 							f.read((char*) &n_length,                              2);
 							f.read((char*) &static_cast<junction*>(atb)->flags,    2);
-							f.read((char*) &static_cast<junction*>(atb)->height1,  2);
-							f.read((char*) &static_cast<junction*>(atb)->height2,  2);
+							f.get();
+							f.read((char*) &static_cast<junction*>(atb)->height1,  1);
+							f.get();
+							f.read((char*) &static_cast<junction*>(atb)->height2,  1);
 							f.read((char*) &static_cast<junction*>(atb)->unknown3, 2);
 
 							n_length = 2 * (n_length - 4);
@@ -604,10 +610,14 @@ error::code psdl::write_file(const char* filename)
 					if (subtype)
 					{
 						f.write((char*) &static_cast<tunnel*>(atb)->flags,   2);
-						f.write((char*) &static_cast<tunnel*>(atb)->height1, 2);
+						f.put(0x00);
+						f.write((char*) &static_cast<tunnel*>(atb)->height1, 1);
 
 						if (subtype > 2)
-							f.write((char*) &static_cast<tunnel*>(atb)->height2, 2);
+						{
+							f.put(0x00);
+							f.write((char*) &static_cast<tunnel*>(atb)->height2, 1);
+						}
 					}
 					else
 					{
@@ -618,8 +628,10 @@ error::code psdl::write_file(const char* filename)
 
 						f.write((char*) &n_length,                              2);
 						f.write((char*) &static_cast<junction*>(atb)->flags,    2);
-						f.write((char*) &static_cast<junction*>(atb)->height1,  2);
-						f.write((char*) &static_cast<junction*>(atb)->height2,  2);
+						f.put(0x00);
+						f.write((char*) &static_cast<junction*>(atb)->height1,  1);
+						f.put(0x00);
+						f.write((char*) &static_cast<junction*>(atb)->height2,  1);
 						f.write((char*) &static_cast<junction*>(atb)->unknown3, 2);
 
 						n_length = 2 * (n_length - 4);

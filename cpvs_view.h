@@ -24,7 +24,7 @@ public:
 
 		for (unsigned long iPt = 0; iPt < pBlock->num_perimeters(); iPt++)
 		{
-			glVertex3fv(&(m_pPSDL->getVertex(pBlock->_perimeter[iPt].vertex).x));
+			glVertex3fv(&(m_pPSDL->get_vertex(pBlock->_perimeter[iPt].vertex)->x));
 		}
 
 		glEnd();

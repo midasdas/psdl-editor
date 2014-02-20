@@ -14,12 +14,15 @@ int Run(LPTSTR = NULL, int nCmdShow = SW_SHOWDEFAULT)
 
 	g_wndMain = new CMainFrame();
 
-	if (g_wndMain->CreateEx() == NULL)
+	CRect rc = CRect(0, 0, 920, 640);
+
+	if (g_wndMain->CreateEx(NULL, rc) == NULL)
 	{
 		ATLTRACE(_T("Main window creation failed!\n"));
 		return 0;
 	}
 
+	g_wndMain->CenterWindow();
 	g_wndMain->ShowWindow(nCmdShow);
 
 	int nRet = theLoop.Run();

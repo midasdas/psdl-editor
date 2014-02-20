@@ -113,7 +113,7 @@ public:
 
 		if (nTo < 0)
 		{
-			psdl::vertex vCopy = m_pDoc->getVertex(nFrom);
+			psdl::vertex vCopy(*m_pDoc->get_vertex(nFrom));
 
 			psdl::vertex vFixed(-940.3245f, 0, 1349.235f);
 			RotateVertex(&vCopy, vFixed, PI);

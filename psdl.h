@@ -46,6 +46,8 @@
 #define BIT_CULLED			0xe // disables outer faces if railings are used
 #define BIT_UNKNOWN			0xf // probably unused
 
+#define SW_H .15f
+
 class psdl
 {
 public:
@@ -305,8 +307,8 @@ public:
 			}
 
 			unsigned short flags;
-			unsigned short height1;
-			unsigned short height2;
+			unsigned char height1;
+			unsigned char height2;
 	};
 
 	class junction : public tunnel
@@ -556,11 +558,6 @@ public:
 
 	long getBlockIndex(block* block);
 
-	vertex getVertex(unsigned long nIndex)
-	{
-		return _vertices[m_aVertexRefs[nIndex]];
-	}
-
 	char* get_texname(unsigned long i_pos)
 	{
 		if (i_pos < num_textures())
@@ -616,7 +613,8 @@ public:
 		return _heights.size();
 	}
 
-	float get_height(unsigned long i_pos) { return _heights[i_pos]; }
+	vertex* get_vertex(unsigned long i_pos) { return &_vertices[i_pos]; }
+	float get_height(unsigned long i_pos)   { return _heights[i_pos];   }
 
 	unsigned long num_vertices(void)   { return _vertices.size();   }
 	unsigned long num_heights(void)    { return _heights.size();    }

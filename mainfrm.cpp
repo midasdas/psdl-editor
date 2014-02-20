@@ -1,6 +1,7 @@
 #include "stdafx.h"
 
 #include <algorithm>
+#include <shellapi.h>
 
 #include "mainfrm.h"
 #include "aboutdlg.h"
@@ -61,8 +62,6 @@ LRESULT CMainFrame::OnDestroy(UINT, WPARAM, LPARAM, BOOL& bHandled)
 
 LRESULT CMainFrame::OnCreate(UINT, WPARAM, LPARAM, BOOL&)
 {
-	glClearColor(0.f, 0.f, 0.f, 1.f);
-
 	PIXELFORMATDESCRIPTOR pfd =
 	{
 		sizeof(PIXELFORMATDESCRIPTOR), 1,

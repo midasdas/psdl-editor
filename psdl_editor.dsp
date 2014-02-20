@@ -124,6 +124,23 @@ SOURCE=.\psdl.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\psdl_view.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\stdafx.cpp
+
+!IF  "$(CFG)" == "psdl_editor - Win32 Release"
+
+!ELSEIF  "$(CFG)" == "psdl_editor - Win32 Debug"
+
+# ADD CPP /Yc
+
+!ENDIF 
+
+# End Source File
+# Begin Source File
+
 SOURCE=.\strings.cpp
 # End Source File
 # Begin Source File
