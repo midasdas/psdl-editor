@@ -2,6 +2,7 @@
 #define __DOCVIEW_H__
 
 #include "io_error.h"
+#include "thread.h"
 #include <string>
 
 template <class TDoc>
@@ -17,15 +18,74 @@ class View
 		TDoc* m_pDoc;
 };
 
+class DocTemplateBase;
+
+typedef struct IOParams
+{
+	std::string strFileName;
+	void** pDoc;
+	DocTemplateBase* pDocTmpl;
+	notify_func callbackFunc;
+
+	IOParams(
+		std::string _strFileName,
+		void** _pDoc,
+		DocTemplateBase* _pDocTmpl,
+		notify_func _callbackFunc = default_callback) :
+		strFileName(_strFileName),
+		pDoc(_pDoc),
+		pDocTmpl(_pDocTmpl),
+		callbackFunc(_callbackFunc)
+	{}
+}
+IOParams;
+
 class DocTemplateBase
 {
 public:
 
 	virtual std::string GetFileName(bool bFull = false) = 0;
-	virtual error::code OpenDocument(std::string strFileName) = 0;
+	virtual error::code OpenDocument(std::string strFileName, notify_func callbackFunc = default_callback) = 0;
 	virtual error::code SaveDocument(std::string strFileName = _T("")) = 0;
+	virtual error::code LoadDocument(void** pDoc, std::string strFileName, notify_func callbackFunc = default_callback) = 0;
+	virtual void SetDocument(void* pDoc, std::string strFileName) = 0;
 	virtual bool FileExists(void) = 0;
 	virtual bool IsModified(void) = 0;
+	virtual void UpdateViews(void) = 0;
+
+	static unsigned _stdcall _LoadDocumentThread(void* pThreadData)
+	{
+		ThreadData* pData = static_cast<ThreadData*>(pThreadData);
+
+		if (IOParams* pPio = static_cast<IOParams*>(pData->pParams))
+		{
+			return pPio->pDocTmpl->LoadDocument(pPio->pDoc, pPio->strFileName, pData->callbackFunc);
+		}
+
+		return error::failure;
+	}
+
+	static unsigned _stdcall _OpenDocumentThread(void* pThreadData)
+	{
+		ThreadData* pData = static_cast<ThreadData*>(pThreadData);
+
+		if (IOParams* pPio = static_cast<IOParams*>(pData->pParams))
+		{
+			return pPio->pDocTmpl->OpenDocument(pPio->strFileName, pData->callbackFunc);
+		}
+
+		return error::failure;
+	}
+
+	static unsigned _OpenDocument(void* pParams)
+	{
+		if (IOParams* pPio = reinterpret_cast<IOParams*>(pParams))
+		{
+			return pPio->pDocTmpl->OpenDocument(pPio->strFileName, pPio->callbackFunc);
+		}
+
+		return error::failure;
+	}
 };
 
 template <class TDoc, class TView>
@@ -73,14 +133,14 @@ public:
 		m_bFileExists = false;
 
 		m_pView->SetDocument(m_pDoc);
-		UpdateViews();
+	//	UpdateViews();
 	}
 
-	virtual error::code OpenDocument(std::string strFileName)
+	virtual error::code OpenDocument(std::string strFileName, notify_func callbackFunc = default_callback)
 	{
 		TDoc* pDoc = new TDoc();
 
-		error::code code = pDoc->read_file(strFileName.c_str());
+		error::code code = pDoc->read_file(strFileName.c_str(), callbackFunc);
 
 		if (code & error::ok)
 		{
@@ -92,14 +152,42 @@ public:
 			m_bFileExists = true;
 
 			m_pView->SetDocument(m_pDoc);
-			UpdateViews();
+		//	UpdateViews();
 		}
 		else
 		{
 			delete pDoc;
 		}
 
+		callbackFunc(_T(""), 100);
+
 		return code;
+	}
+
+	virtual error::code LoadDocument(void** pDoc, std::string strFileName, notify_func callbackFunc = default_callback)
+	{
+		*pDoc = new TDoc();
+
+		error::code code = static_cast<TDoc*>(*pDoc)->read_file(strFileName.c_str(), callbackFunc);
+
+		callbackFunc(_T(""), 100);
+
+		return code;
+	}
+
+	void SetDocument(void* pDoc, std::string strFileName)
+	{
+		if (m_pDoc) delete m_pDoc;
+
+		m_pDoc        = static_cast<TDoc*>(pDoc);
+		m_strFileName = strFileName;
+		m_bModified   = false;
+		m_bFileExists = true;
+
+		ATLASSERT(pDoc != NULL);
+
+		m_pView->SetDocument(m_pDoc);
+	//	UpdateViews();
 	}
 
 	error::code SaveDocument(std::string strFileName)

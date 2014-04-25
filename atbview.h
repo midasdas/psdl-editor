@@ -13,6 +13,7 @@ public:
 	virtual BOOL DestroyWindow() = 0;
 	virtual BOOL ShowWindow(int nCmdShow) = 0;
 	virtual BOOL DoDataExchange(BOOL bSaveAndValidate = FALSE, UINT nCtlID = (UINT) -1) = 0;
+	virtual BOOL IsWindow(void) = 0;
 };
 
 template <class T>
@@ -30,6 +31,10 @@ public:
 		{ return CDialogImpl<T>::ShowWindow(nCmdShow); }
 	virtual BOOL DoDataExchange(BOOL bSaveAndValidate = FALSE, UINT nCtlID = (UINT) -1)
 		{ return TRUE; }
+	BOOL IsWindow(void)
+		{ return CDialogImpl<T>::IsWindow(); }
+	void OnFinalMessage(HWND)
+		{ delete this; }
 };
 
 template <WORD t_wDlgTemplateID>
@@ -88,7 +93,7 @@ class CRoadView :
 		LRESULT OnInitDialog(UINT, WPARAM, LPARAM, BOOL&);
 
 	private:
-		CMyListBox		m_list;
+		CMyListBox       m_list;
 		psdl::attribute* m_atb;
 };
 
@@ -113,15 +118,13 @@ class CTextureView :
 			CHAIN_MSG_MAP(CDialogResize<CTextureView>)
 		END_MSG_MAP()
 
-		CTextureView(psdl::attribute* pAtb)
-		{
-			m_atb = pAtb;
-		}
+		CTextureView(psdl::attribute* pAtb, psdl* pDoc) : m_pAtb(pAtb), m_pDoc(pDoc) {}
 
 		LRESULT OnInitDialog(UINT, WPARAM, LPARAM, BOOL&);
 
 	private:
-		psdl::attribute *m_atb;
+		psdl* m_pDoc;
+		psdl::attribute* m_pAtb;
 		CString m_textureName;
 
 };

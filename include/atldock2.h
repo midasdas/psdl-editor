@@ -57,7 +57,11 @@ public:
 		const int Y  = 2;
 
 		if( !::IsRectEmpty(&rcCloseButton) )
-			dc.DrawFrameControl(&rcCloseButton, DFC_CAPTION, bCloseDown ? DFCS_CAPTIONCLOSE|DFCS_PUSHED : DFCS_CAPTIONCLOSE);
+		{
+			CMemoryDC dcMem(dc, rcCloseButton);
+			dcMem.DrawFrameControl(&rcCloseButton, DFC_CAPTION, DFCS_FLAT | (bCloseDown ? DFCS_CAPTIONCLOSE|DFCS_PUSHED : DFCS_CAPTIONCLOSE));
+			dcMem.FrameRect(&rcCloseButton, GetSysColorBrush(COLOR_BTNFACE));
+		}
 
 		RECT rcText;
 		::SetRect(&rcText,rcBar.left+INSET, rcBar.top+Y, rcCloseButton.left - 4, rcBar.bottom - 1);

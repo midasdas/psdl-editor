@@ -35,13 +35,13 @@ public:
 		MESSAGE_HANDLER(WM_KEYDOWN, OnKeyDown);
 		MESSAGE_HANDLER(WM_MOUSEACTIVATE, OnMouseActivate);
 		MESSAGE_HANDLER(WM_MOUSEMOVE, OnMouseMove);
-		MESSAGE_HANDLER(WM_LBUTTONDOWN, OnMouseDown);
-		MESSAGE_HANDLER(WM_RBUTTONDOWN, OnMouseDown);
+		MESSAGE_HANDLER(WM_LBUTTONDOWN, OnMouseDownL);
+		MESSAGE_HANDLER(WM_RBUTTONDOWN, OnMouseDownR);
 		MESSAGE_HANDLER(WM_LBUTTONUP, OnMouseUpL);
 		MESSAGE_HANDLER(WM_RBUTTONUP, OnMouseUpR);
 	END_MSG_MAP()
 
-	COpenGLView() : nWidth(0), nHeight(0), dAspect(0), xPos(0), yPos(0), zPos(0), xRot(0), yRot(0) {}
+	COpenGLView() : nWidth(0), nHeight(0), dAspect(0), xPos(0), yPos(0), zPos(0), xRot(0), yRot(0), zoom(1) {}
 
 	void RenderAxes(void);
 
@@ -72,7 +72,8 @@ public:
 	LRESULT OnSize(UINT, WPARAM, LPARAM, BOOL&);
 	LRESULT OnKeyDown(UINT, WPARAM wParam, LPARAM, BOOL&);
 	LRESULT OnMouseMove(UINT, WPARAM, LPARAM, BOOL&);
-	LRESULT OnMouseDown(UINT, WPARAM, LPARAM, BOOL&);
+	LRESULT OnMouseDownL(UINT, WPARAM, LPARAM, BOOL&);
+	LRESULT OnMouseDownR(UINT, WPARAM, LPARAM, BOOL&);
 	LRESULT OnMouseUpL(UINT, WPARAM, LPARAM, BOOL&);
 	LRESULT OnMouseUpR(UINT, WPARAM, LPARAM, BOOL&);
 
@@ -80,7 +81,7 @@ public:
 	{
 		m_hDC = GetDC();
 
-		glEnable(GL_DEPTH_TEST);
+/*		glEnable(GL_DEPTH_TEST);
 		glEnable(GL_LIGHTING);
 		glEnable(GL_NORMALIZE);
 
@@ -97,7 +98,7 @@ public:
 		glColorMaterial(GL_FRONT, GL_AMBIENT_AND_DIFFUSE);
 
 		glClearColor(0.f, 0.f, 0.f, 1.f);
-
+*/
 		return 0;
 	}
 
@@ -128,6 +129,8 @@ private:
 
 	int nWidth;
 	int nHeight;
+
+	GLfloat zoom, zoomDrag;
 
 	GLfloat xMouseDrag, yMouseDrag;
 

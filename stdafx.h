@@ -1,6 +1,8 @@
 #ifndef __STDAFX_H__
 #define __STDAFX_H__
 
+#define _WTL_USE_CSTRING
+
 #define WIN32_LEAN_AND_MEAN
 #define _WIN32_IE 0x0400
 
@@ -20,6 +22,7 @@ extern CAppModule _Module;
 #include <atldlgs.h>
 #include <atlmisc.h>
 
+#include <atlcrack.h>
 #include <atlddx.h>
 
 #endif

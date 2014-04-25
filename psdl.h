@@ -52,8 +52,6 @@ class psdl
 {
 public:
 
-	psdl(void) : f_radius(0), _unknown0(0), _unknown1(0x00), _unknown2(0xcd) {}
-
 	typedef struct vertex
 	{
 		float x, y, z;
@@ -76,10 +74,11 @@ public:
 	{
 		public:
 
-			attribute() : enabled(true) {}
+			attribute(char type) : type(type), subtype(0), last(false), enabled(true) {}
 			virtual ~attribute() {}
 
-			virtual attribute* clone(void) {
+			virtual attribute* clone(void)
+			{
 				return new attribute(*this);
 			}
 
@@ -87,9 +86,12 @@ public:
 			bool last, enabled;
 	};
 
-	class vertex_based
+	class vertex_based : public attribute
 	{
 		public:
+
+			vertex_based(char type) : attribute(type) {}
+			virtual ~vertex_based() {}
 
 			void insert_vertex(unsigned short i_vertex, unsigned short i_pos)
 			{
@@ -126,6 +128,7 @@ public:
 	class facade_base
 	{
 		public:
+			virtual ~facade_base() {}
 
 			unsigned short top;   // index in the height list
 			unsigned short left;  // index in the vertex list
@@ -133,12 +136,13 @@ public:
 	};
 
 // 0x0
-	class road_strip : public vertex_based, public attribute
+	class road_strip : public vertex_based
 	{
 		public:
 
-			// conversion to attribute class
-			operator attribute() { return attribute(); }
+			road_strip() : vertex_based(ATB_ROAD) {}
+
+			attribute* clone(void) { return new road_strip(*this); }
 
 			unsigned short num_sections(void)
 			{
@@ -158,12 +162,14 @@ public:
 	};
 
 // 0x1
-	class sidewalk_strip : public vertex_based, public attribute
+	class sidewalk_strip : public vertex_based
 	{
 		public:
 
-			// conversion to attribute class
-			operator attribute() { return attribute(); }
+			sidewalk_strip(char type = ATB_SIDEWALK) : vertex_based(type) {}
+			virtual ~sidewalk_strip() {}
+
+			attribute* clone(void) { return new sidewalk_strip(*this); }
 
 			unsigned short num_sections(void)
 			{
@@ -183,15 +189,20 @@ public:
 	};
 
 // 0x2
-	typedef sidewalk_strip rectangle_strip;
+	class rectangle_strip : public sidewalk_strip
+	{
+		public:
+			rectangle_strip() : sidewalk_strip(ATB_RECTANGLE) {}
+	};
 
 // 0x3
 	class sliver : public facade_base, public attribute
 	{
 		public:
 
-			// conversion to attribute class
-			operator attribute() { return attribute(); }
+			sliver() : attribute(ATB_SLIVER) {}
+
+			attribute* clone(void) { return new sliver(*this); }
 
 			unsigned short tex_scale; // value for uniformly scaling the texture
 	};
@@ -201,8 +212,9 @@ public:
 	{
 		public:
 
-			// conversion to attribute class
-			operator attribute() { return attribute(); }
+			crosswalk() : attribute(ATB_CROSSWALK) {}
+
+			attribute* clone(void) { return new crosswalk(*this); }
 
 			unsigned short get_vertex_ref(unsigned char i_pos)
 			{
@@ -217,12 +229,13 @@ public:
 	};
 
 // 0x5
-	class road_triangle_fan : public vertex_based, public attribute
+	class road_triangle_fan : public vertex_based
 	{
 		public:
 
-			// conversion to attribute class
-			operator attribute() { return attribute(); }
+			road_triangle_fan() : vertex_based(ATB_ROADTRIANGLEFAN) {}
+
+			attribute* clone(void) { return new road_triangle_fan(*this); }
 
 			unsigned short num_triangles(void)
 			{
@@ -249,18 +262,20 @@ public:
 	{
 		public:
 
-			// conversion to attribute class
-			operator attribute() { return attribute(); }
+			facade_bound() : attribute(ATB_FACADEBOUND) {}
+
+			attribute* clone(void) { return new facade_bound(*this); }
 
 			unsigned short angle;
 	};
 // 0x8
-	class divided_road_strip : public vertex_based, public attribute
+	class divided_road_strip : public vertex_based
 	{
 		public:
 
-			// conversion to attribute class
-			operator attribute() { return attribute(); }
+			divided_road_strip() : vertex_based(ATB_DIVIDEDROAD) {}
+
+			attribute* clone(void) { return new divided_road_strip(*this); }
 
 			unsigned short num_sections(void)
 			{
@@ -293,8 +308,10 @@ public:
 	{
 		public:
 
-			// conversion to attribute class
-			operator attribute() { return attribute(); }
+			tunnel() : attribute(ATB_TUNNEL) {}
+			virtual ~tunnel() {}
+
+			virtual attribute* clone(void) { return new tunnel(*this); }
 
 			bool get_flag(unsigned char flag_id)
 			{
@@ -316,6 +333,7 @@ public:
 		public:
 
 			friend class psdl; // direct access to private vector
+			attribute* clone(void) { return new junction(*this); }
 
 			void add_wall(bool enable = true)
 			{
@@ -342,8 +360,9 @@ public:
 	{
 		public:
 
-			// conversion to attribute class
-			operator attribute() { return attribute(); }
+			texture() : attribute(ATB_TEXTURE) {}
+
+			attribute* clone(void) { return new texture(*this); }
 
 			unsigned short i_texture;
 	};
@@ -353,8 +372,9 @@ public:
 	{
 		public:
 
-			// conversion to attribute class
-			operator attribute() { return attribute(); }
+			facade() : attribute(ATB_FACADE) {}
+
+			attribute* clone(void) { return new facade(*this); }
 
 			unsigned short bottom;   // index in the height list
 			unsigned short u_repeat; // number of times to repeat the texture along its u-axis
@@ -362,12 +382,13 @@ public:
 	};
 
 // 0xc
-	class roof_triangle_fan : public vertex_based, public attribute
+	class roof_triangle_fan : public vertex_based
 	{
 		public:
 
-			// conversion to attribute class
-			operator attribute() { return attribute(); }
+			roof_triangle_fan() : vertex_based(ATB_ROOFTRIANGLEFAN) {}
+
+			attribute* clone(void) { return new roof_triangle_fan(*this); }
 
 			void f_write(std::ofstream& f)
 			{
@@ -390,7 +411,7 @@ public:
 		public:
 
 			block(unsigned char type = BIT_PLAIN, unsigned char proprule = 0)
-				: type(type), proprule(proprule), attributesize(0) {}
+				: enabled(true), locked(false), type(type), proprule(proprule), attributesize(0) {}
 
 			block(const block& b)
 			{
@@ -403,9 +424,19 @@ public:
 
 				for (unsigned long i = 0; i < b._attributes.size(); i++)
 
-					_attributes.push_back(b._attributes[i]); // copies the object
+					_attributes.push_back(b._attributes[i]->clone());
 
-			//	ATLTRACE("\npsdl::block copy constructor called");
+				ATLTRACE("\npsdl::block copy constructor called");
+			}
+
+			~block()
+			{
+				std::vector<attribute*>::iterator it = _attributes.begin();
+				while (it != _attributes.end())
+				{
+					delete *it;
+					++it;
+				}
 			}
 
 			attribute* get_attribute(unsigned long i_pos);
@@ -417,8 +448,8 @@ public:
 
 			void add_perimeter_point(unsigned short i_vertex)
 			{
-			//	perimeter_pt pp = { i_vertex, 0 };
-			//	add_perimeter_point(pp);
+				perimeter_pt pp = { i_vertex, 0 };
+				add_perimeter_point(pp);
 			}
 
 			void addPerimeterRange(unsigned short nVertexRef, long nOffset)
@@ -478,6 +509,8 @@ public:
 
 			unsigned short attributesize;
 			unsigned char  type, proprule;
+
+			bool enabled, locked;// Flags for GUI implementation
 	};
 
 	class blockpath
@@ -498,7 +531,7 @@ public:
 														// this road.
 	};
 
-	size_t add_block(block& block)
+	size_t add_block(block* block)
 	{
 		size_t index = _blocks.size();
 		_blocks.push_back(block);
@@ -509,14 +542,16 @@ public:
 		return index;
 	}
 
-	void insert_block(block& block, unsigned long i_pos)
+	void insert_block(block* block, int i_pos)
 	{
+		if (i_pos < 0) i_pos = num_blocks();
+
 		for (size_t i = 0; i < num_blocks(); i++)
 		{
-			for (size_t j = 0; j < _blocks[i].num_perimeters(); j++)
+			for (size_t j = 0; j < _blocks[i]->num_perimeters(); j++)
 			{
-				if (_blocks[i].get_perimeter_point(j)->block >= i_pos)
-					_blocks[i].get_perimeter_point(j)->block++;
+				if (_blocks[i]->get_perimeter_point(j)->block >= i_pos)
+					_blocks[i]->get_perimeter_point(j)->block++;
 			}
 		}
 
@@ -534,20 +569,10 @@ public:
 		return index;
 	}
 
-	unsigned long getReferredBlockId(unsigned long nRef)
-	{
-		return m_aBlockRefs[nRef];
-	}
-
-	block* getRefferedBlock(unsigned long nRef)
-	{
-		return &_blocks[m_aBlockRefs[nRef]];
-	}
-
 	block* get_block(unsigned long i_pos)
 	{
 		if (i_pos < _blocks.size())
-			return &_blocks[i_pos];
+			return _blocks[i_pos];
 		return NULL;
 	}
 
@@ -556,9 +581,16 @@ public:
 		return &_blockpaths[i_pos];
 	}
 
-	long getBlockIndex(block* block);
+	long get_block_index(block* block)
+	{
+		for (long i = 0; i < _blocks.size(); i++) {
+			if (_blocks[i] == block)
+				return i;
+		}
+		return -1;
+	}
 
-	char* get_texname(unsigned long i_pos)
+	std::string get_texname(unsigned long i_pos)
 	{
 		if (i_pos < num_textures())
 			return _textures[i_pos];
@@ -599,7 +631,7 @@ public:
 		return 0;
 	}
 
-	error::code read_file (const char* filename);
+	error::code read_file (const char* filename, notify_func callback = default_callback);
 	error::code write_file(const char* filename);
 
 	// --- Inline Functions ---
@@ -622,10 +654,23 @@ public:
 	unsigned long num_blocks(void)     { return _blocks.size();     }
 	unsigned long num_blockpaths(void) { return _blockpaths.size(); }
 
+	psdl() : f_radius(0), _unknown0(0), _unknown1(0x00), _unknown2(0xcd) {}
+	~psdl()
+	{
+		std::vector<block*>::iterator it = _blocks.begin();
+		while (it != _blocks.end())
+		{
+			delete *it;
+			++it;
+		}
+	}
+
 	vertex v_min;
 	vertex v_max;
 	vertex v_center;
 	float  f_radius;
+
+	std::vector<std::string>    _textures;
 
 private:
 
@@ -634,8 +679,7 @@ private:
 
 	std::vector<vertex>        _vertices;
 	std::vector<float>         _heights;
-	std::vector<char*>         _textures;
-	std::vector<block>         _blocks;
+	std::vector<block*>        _blocks;
 	std::vector<blockpath>     _blockpaths;
 	std::vector<unsigned char> _junk; // junk found at the end of the file
 

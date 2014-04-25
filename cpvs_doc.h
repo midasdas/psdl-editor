@@ -40,11 +40,13 @@ public:
 		baseClass::NewDocument(sFileName);
 	}
 
-	error::code OpenDocument(std::string strFileName)
+	error::code OpenDocument(std::string strFileName, notify_func callbackFunc)
 	{
 		cpvs* pDoc = new cpvs();
 
-		error::code code = pDoc->read_file(strFileName.c_str(), m_pPSDL);
+		error::code code = pDoc->read_file(strFileName.c_str(), callbackFunc, m_pPSDL);
+
+		callbackFunc(_T(""), 100);
 
 		if (code & error::ok)
 		{

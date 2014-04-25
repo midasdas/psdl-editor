@@ -8,16 +8,7 @@
 
 using namespace std;
 
-long psdl::getBlockIndex(psdl::block* block)
-{
-	for (long i = 0; i < _blocks.size(); i++) {
-		if (&_blocks[i] == block)
-			return i;
-	}
-	return -1;
-}
-
-error::code psdl::read_file(const char* filename)
+error::code psdl::read_file(const char* filename, notify_func callback)
 {
 	clock_t start_time = clock();
 	
@@ -29,6 +20,10 @@ error::code psdl::read_file(const char* filename)
 
 	ATLTRACE("\nReading file: %s\n", filename);
 
+	f.seekg(0, ios_base::end);
+	double fsize = f.tellg() / 100;
+	f.seekg(0, ios_base::beg);
+
 	char identifier[4];
 	f.read(identifier, 4);
 	if (strncmp(identifier, "PSD0", 4))
@@ -36,6 +31,7 @@ error::code psdl::read_file(const char* filename)
 
 	f.seekg(4, ios_base::cur);
 
+	callback(_T("Reading vertices"), f.tellg() / fsize);
 	f.read((char*) &n_size, 4);
 	ATLTRACE("Number of vertices: 0x%x\n", n_size);
 	_vertices.reserve(n_size);
@@ -43,6 +39,8 @@ error::code psdl::read_file(const char* filename)
 	vertex vert;
 	for (i = 0; i < n_size; i++)
 	{
+		callback(_T(""), f.tellg() / fsize);
+
 		f.read((char*) &vert, sizeof(vertex));
 		add_vertex(vert);
 	//	vertices.push_back(vertex);
@@ -51,6 +49,7 @@ error::code psdl::read_file(const char* filename)
 	//	ATLTRACE("Vertex %x: %f, %f, %f\n", i, vertexRefs[i]->x, vertexRefs[i]->y, vertexRefs[i]->z);
 	}
 
+	callback(_T("Reading heights"), f.tellg() / fsize);
 	f.read((char*) &n_size, 4);
 	ATLTRACE("Number of heights: 0x%x\n", n_size);
 	_heights.reserve(n_size);
@@ -58,10 +57,13 @@ error::code psdl::read_file(const char* filename)
 	float height;
 	for (i = 0; i < n_size; i++)
 	{
+		callback(_T(""), f.tellg() / fsize);
+
 		f.read((char*) &height, 4);
 		add_height(height);
 	}
 
+	callback(_T("Reading textures"), f.tellg() / fsize);
 	f.read((char*) &n_size, 4);
 	ATLTRACE("Number of textures: 0x%x\n", n_size - 1);
 	_textures.reserve(n_size);
@@ -69,6 +71,8 @@ error::code psdl::read_file(const char* filename)
 	unsigned char n_length;
 	for (i = 0; i < n_size - 1; i++)
 	{
+		callback(_T(""), f.tellg() / fsize);
+
 		f.read((char*) &n_length, 1);
 		char* textureName;
 
@@ -87,6 +91,7 @@ error::code psdl::read_file(const char* filename)
 	//	ATLTRACE("Texture %x: %s\n", i, textureName);
 	}
 
+	callback(_T("Reading blocks"), f.tellg() / fsize);
 	f.read((char*) &n_size, 4);
 	f.read((char*) &_unknown0, 4);
 	n_size--;
@@ -97,15 +102,17 @@ error::code psdl::read_file(const char* filename)
 
 	for (i = 0; i < n_size; i++)
 	{
-		psdl::block block;
+		callback(_T(""), f.tellg() / fsize);
+
+		psdl::block* block = new psdl::block();
 		unsigned long j, n_perimeters, n_attributesize;
 
 		f.read((char*) &n_perimeters, 4);
 		f.read((char*) &n_attributesize, 4);
 
 	//	perimeter_data[i].reserve(n_perimeters);
-		block._perimeter.reserve(n_perimeters);
-		block.setAttributeSize(n_attributesize);
+		block->_perimeter.reserve(n_perimeters);
+		block->setAttributeSize(n_attributesize);
 
 		for (j = 0; j < n_perimeters; j++)
 		{
@@ -118,7 +125,7 @@ error::code psdl::read_file(const char* filename)
 			f.read((char*) &pp, sizeof(perimeter_pt));
 
 		//	perimeter_data[i].push_back(ppi);
-			block.add_perimeter_point(pp);
+			block->add_perimeter_point(pp);
 		}
 
 		unsigned int nAttributes = 0;
@@ -368,7 +375,7 @@ error::code psdl::read_file(const char* filename)
 				atb->last    = last;
 				atb->type    = type;
 				atb->subtype = subtype;
-				block.add_attribute(atb);
+				block->add_attribute(atb);
 				nAttributes++;
 			}
 		}
@@ -399,7 +406,7 @@ error::code psdl::read_file(const char* filename)
 
 	for (i = 0; i < n_size; i++)
 	{
-		f.read((char*) &_blocks[i].type, 1);
+		f.read((char*) &_blocks[i]->type, 1);
 	}
 
 	_unknown2 = f.get();
@@ -407,7 +414,7 @@ error::code psdl::read_file(const char* filename)
 
 	for (i = 0; i < n_size; i++)
 	{
-		f.read((char*) &_blocks[i].proprule, 1);
+		f.read((char*) &_blocks[i]->proprule, 1);
 	}
 
 	f.read((char*) &v_min,    sizeof(vertex));
@@ -513,13 +520,13 @@ error::code psdl::write_file(const char* filename)
 	unsigned char n_length;
 	for (i = 0; i < n_size - 1; i++)
 	{
-		char* texname = _textures[i];
-		n_length = strlen(texname) + 1;
+		std::string texname = _textures[i];
+		n_length = texname.length() + 1;
 
 		if (n_length > 1)
 		{
 			f.write((char*) &n_length, 1);
-			f.write(texname, n_length);
+			f.write((char*) &texname, n_length);
 		}
 		else
 		{
@@ -534,7 +541,7 @@ error::code psdl::write_file(const char* filename)
 
 	for (i = 0; i < n_size; i++)
 	{
-		block* block = &_blocks[i];
+		block* block = _blocks[i];
 
 		unsigned long j = 0, n_perimeters = 0, n_attributesize = 0, n_attributes = 0;
 
@@ -671,14 +678,14 @@ error::code psdl::write_file(const char* filename)
 
 	for (i = 0; i < n_size; i++)
 	{
-		f.write((char*) &_blocks[i].type, 1);
+		f.write((char*) &_blocks[i]->type, 1);
 	}
 
 	f.put(_unknown2);
 
 	for (i = 0; i < n_size; i++)
 	{
-		f.write((char*) &_blocks[i].proprule, 1);
+		f.write((char*) &_blocks[i]->proprule, 1);
 	}
 
 	f.write((char*) &v_min,    sizeof(vertex));

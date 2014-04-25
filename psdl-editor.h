@@ -19,6 +19,14 @@ struct GlobalOptions
 	}
 	general;
 
+	struct DisplayOptions
+	{
+		bool bWireframe;
+
+		DisplayOptions() : bWireframe(false) {}
+	}
+	display;
+
 	struct FilesOptions
 	{
 		char* browseDir;
@@ -34,7 +42,5 @@ struct GlobalOptions
 };
 
 extern GlobalOptions g_options;
-
-extern CMainFrame* g_wndMain;
 
 #endif

@@ -29,11 +29,11 @@ LRESULT CRoadView::OnInitDialog(UINT, WPARAM, LPARAM, BOOL&)
 
 LRESULT CTextureView::OnInitDialog(UINT, WPARAM, LPARAM, BOOL&)
 {
-	unsigned short nIndex = static_cast<psdl::texture*>(m_atb)->i_texture;
+	unsigned short nIndex = static_cast<psdl::texture*>(m_pAtb)->i_texture;
 
-//	m_textureName.Format("0x%x: %s", nIndex, g_psdl->getTextureName(nIndex));
+	m_textureName.Format("0x%x: %s", nIndex, m_pDoc->get_texname(nIndex).c_str());
 
-//	DoDataExchange(FALSE);
+	DoDataExchange(FALSE);
 	DlgResize_Init(false, false, WS_CHILD | WS_VISIBLE);
 
 	return FALSE;

@@ -5,30 +5,26 @@
 CAppModule _Module;
 GlobalOptions g_options;
 
-CMainFrame* g_wndMain;
-
 int Run(LPTSTR = NULL, int nCmdShow = SW_SHOWDEFAULT)
 {
 	CMessageLoop theLoop;
 	_Module.AddMessageLoop(&theLoop);
 
-	g_wndMain = new CMainFrame();
+	RECT rc = { 0, 0, 960, 677 };
 
-	CRect rc = CRect(0, 0, 920, 640);
+	CMainFrame wndMain;
 
-	if (g_wndMain->CreateEx(NULL, rc) == NULL)
+	if (wndMain.CreateEx(NULL, rc) == NULL)
 	{
 		ATLTRACE(_T("Main window creation failed!\n"));
 		return 0;
 	}
 
-	g_wndMain->CenterWindow();
-	g_wndMain->ShowWindow(nCmdShow);
+	wndMain.CenterWindow();
+	wndMain.ShowWindow(nCmdShow);
 
 	int nRet = theLoop.Run();
 	_Module.RemoveMessageLoop();
-
-	delete g_wndMain;
 
 	return nRet;
 }
@@ -39,9 +35,9 @@ int WINAPI _tWinMain(HINSTANCE hInstance, HINSTANCE, LPTSTR lpstrCmdLine, int nC
 	GetCurrentDirectory(MAX_PATH, lpDir);
 	sprintf(lpFile, "%s\\psdl-editor.ini", lpDir);
 
-	g_options.files.browseDir	= new char[MAX_PATH];
-	g_options.tools.mm2Dir		= new char[MAX_PATH];
-	g_options.tools.mm2Exe		= new char[MAX_PATH];
+	g_options.files.browseDir = new char[MAX_PATH];
+	g_options.tools.mm2Dir    = new char[MAX_PATH];
+	g_options.tools.mm2Exe    = new char[MAX_PATH];
 
 	GetPrivateProfileString("Files", "Browse_Dir", NULL, g_options.files.browseDir, MAX_PATH, lpFile);
 	GetPrivateProfileString("Tools", "MM2_Dir", DEFAULT_MM2_DIR, g_options.tools.mm2Dir, MAX_PATH, lpFile);

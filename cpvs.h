@@ -8,7 +8,7 @@ class cpvs
 {
 public:
 
-	error::code read_file (const char* filename, psdl* psdl = NULL);
+	error::code read_file (const char* filename, notify_func callback = default_callback, psdl* psdl = NULL);
 	error::code write_file(const char* filename);
 };
 

@@ -6,8 +6,10 @@
 
 using namespace std;
 
-error::code cpvs::read_file(const char* filename, psdl* psdl)
+error::code cpvs::read_file(const char* filename, notify_func callback, psdl* psdl)
 {
+	callback(_T("Busy..."), 0);
+
 	error::code ret = error::ok;
 
 	ifstream f(filename, ios::in | ios::binary);

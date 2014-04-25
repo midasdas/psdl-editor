@@ -1,6 +1,8 @@
 #ifndef __MAINFRM_H__
 #define __MAINFRM_H__
 
+#include <string>
+
 #include "resource.h"
 #include "docview.h"
 #include "psdl.h"
@@ -10,6 +12,7 @@
 #include "toolwnd.h"
 #include "glview.h"
 #include "histmgr.h"
+#include "dialogs.h"
 
 #include "include/atldock.h"
 #include "include/atldock2.h"
@@ -24,6 +27,8 @@ typedef struct
 }
 extMap;
 
+class CMainFrame;
+
 class CMainFrame :
 	public CFrameWindowImpl<CMainFrame>,
 	public CUpdateUI<CMainFrame>,
@@ -32,6 +37,8 @@ class CMainFrame :
 	public HistoryManager
 {
 public:
+
+	CMainFrame() { this_ptr = this; }
 
 	DECLARE_FRAME_WND_CLASS(NULL, IDR_MAINFRAME)
 
@@ -42,10 +49,12 @@ public:
 		UPDATE_ELEMENT(ID_FILE_SAVE,			UPDUI_MENUPOPUP | UPDUI_TOOLBAR)
 		UPDATE_ELEMENT(ID_EDIT_UNDO,			UPDUI_MENUPOPUP | UPDUI_TOOLBAR)
 		UPDATE_ELEMENT(ID_EDIT_REDO,			UPDUI_MENUPOPUP | UPDUI_TOOLBAR)
+		UPDATE_ELEMENT(ID_EDIT_TRANSFORM,		UPDUI_MENUPOPUP)
 		UPDATE_ELEMENT(ID_VIEW_TOOLBAR,			UPDUI_MENUPOPUP)
 		UPDATE_ELEMENT(ID_WINDOWS_CITYBLOCKS,	UPDUI_MENUPOPUP)
 		UPDATE_ELEMENT(ID_WINDOWS_ATTRIBUTES,	UPDUI_MENUPOPUP)
 		UPDATE_ELEMENT(ID_WINDOWS_PROPERTIES,	UPDUI_MENUPOPUP)
+		UPDATE_ELEMENT(ID_VIEW_WIREFRAME,		UPDUI_MENUPOPUP)
 		UPDATE_ELEMENT(ID_VIEW_STATUS_BAR,		UPDUI_MENUPOPUP)
 		UPDATE_ELEMENT(ID_MODE_PSDL,			UPDUI_MENUPOPUP | UPDUI_TOOLBAR)
 		UPDATE_ELEMENT(ID_MODE_CPVS,			UPDUI_MENUPOPUP | UPDUI_TOOLBAR)
@@ -69,6 +78,9 @@ public:
 		COMMAND_ID_HANDLER(ID_FILE_SAVE_AS, OnFileSaveAs)
 		COMMAND_ID_HANDLER(ID_APP_EXIT,	OnFileExit)
 
+		COMMAND_ID_HANDLER(ID_EDIT_TRANSFORM, OnEditTransform)
+
+		COMMAND_ID_HANDLER(ID_VIEW_WIREFRAME, OnViewWireframe)
 		COMMAND_ID_HANDLER(ID_VIEW_TOOLBAR, OnViewToolBar)
 		COMMAND_RANGE_HANDLER(ID_WINDOWS_CITYBLOCKS, ID_WINDOWS_BAI_CULLING, OnViewBar)
 		COMMAND_ID_HANDLER(ID_VIEW_STATUS_BAR, OnViewStatusBar)
@@ -76,6 +88,7 @@ public:
 
 		COMMAND_ID_HANDLER(ID_INSERT_CITYBLOCK, OnInsertBlock)
 		COMMAND_ID_HANDLER(ID_INSERT_DUPLICATE_BLOCKS, OnDuplicateBlock)
+		COMMAND_ID_HANDLER(ID_INSERT_GENERATE_PERIMETERS, OnGeneratePerimeters)
 
 		COMMAND_ID_HANDLER(ID_TOOLS_OPTIMIZE, OnOptimizePSDL)
 		COMMAND_ID_HANDLER(ID_TOOLS_MM2, OnLaunchMM2)
@@ -87,35 +100,46 @@ public:
 		CHAIN_MSG_MAP(CFrameWindowImpl<CMainFrame>)
 	END_MSG_MAP()
 
-	LRESULT OnDestroy			(UINT, WPARAM, LPARAM, BOOL&);
-	LRESULT OnCreate			(UINT, WPARAM, LPARAM, BOOL&);
-	LRESULT OnPaintDescendants	(UINT, WPARAM, LPARAM, BOOL&);
+	LRESULT OnDestroy         (UINT, WPARAM, LPARAM, BOOL&);
+	LRESULT OnCreate          (UINT, WPARAM, LPARAM, BOOL&);
+	LRESULT OnPaintDescendants(UINT, WPARAM, LPARAM, BOOL&);
 
-	LRESULT OnFileExit				(WORD, WORD, HWND, BOOL&);
-	LRESULT OnFileNew				(WORD, WORD, HWND, BOOL&);
-	LRESULT OnFileOpen				(WORD, WORD, HWND, BOOL&);
-	LRESULT OnOpenContainingFolder	(WORD, WORD, HWND, BOOL&);
-	LRESULT OnFileSave				(WORD, WORD, HWND, BOOL&);
-	LRESULT OnFileSaveAs			(WORD, WORD, HWND, BOOL&);
+	LRESULT OnFileExit            (WORD, WORD, HWND, BOOL&);
+	LRESULT OnFileNew             (WORD, WORD, HWND, BOOL&);
+	LRESULT OnFileOpen            (WORD, WORD, HWND, BOOL&);
+	LRESULT OnOpenContainingFolder(WORD, WORD, HWND, BOOL&);
+	LRESULT OnFileSave            (WORD, WORD, HWND, BOOL&);
+	LRESULT OnFileSaveAs          (WORD, WORD, HWND, BOOL&);
 
-	LRESULT OnViewToolBar			(WORD, WORD, HWND, BOOL&);
-	LRESULT OnViewStatusBar			(WORD, WORD, HWND, BOOL&);
-	LRESULT OnViewBar				(WORD, WORD, HWND, BOOL&);
-	LRESULT OnSetEditingMode		(WORD, WORD, HWND, BOOL&);
+	LRESULT OnEditTransform(WORD, WORD, HWND, BOOL&);
 
-	LRESULT OnInsertBlock			(WORD, WORD, HWND, BOOL&);
-	LRESULT OnDuplicateBlock		(WORD, WORD, HWND, BOOL&);
+	LRESULT OnViewWireframe (WORD, WORD, HWND, BOOL&);
+	LRESULT OnViewToolBar   (WORD, WORD, HWND, BOOL&);
+	LRESULT OnViewStatusBar (WORD, WORD, HWND, BOOL&);
+	LRESULT OnViewBar       (WORD, WORD, HWND, BOOL&);
+	LRESULT OnSetEditingMode(WORD, WORD, HWND, BOOL&);
 
-	LRESULT OnOptimizePSDL			(WORD, WORD, HWND, BOOL&);
-	LRESULT OnLaunchMM2				(WORD, WORD, HWND, BOOL&);
-	LRESULT OnOptions				(WORD, WORD, HWND, BOOL&);
+	LRESULT OnInsertBlock       (WORD, WORD, HWND, BOOL&);
+	LRESULT OnDuplicateBlock    (WORD, WORD, HWND, BOOL&);
+	LRESULT OnGeneratePerimeters(WORD, WORD, HWND, BOOL&);
 
-	LRESULT OnAppAbout				(WORD, WORD, HWND, BOOL&);
+	LRESULT OnOptimizePSDL(WORD, WORD, HWND, BOOL&);
+	LRESULT OnLaunchMM2   (WORD, WORD, HWND, BOOL&);
+	LRESULT OnOptions     (WORD, WORD, HWND, BOOL&);
 
+	LRESULT OnAppAbout(WORD, WORD, HWND, BOOL&);
+
+	static COpenGLView* GetView(void) { return &this_ptr->m_view; }
 	void UpdateCaption(void);
 	void SetEditingMode(int iMode);
-	void SelectBlock(long iIndex);
-	void SelectAttribute(psdl::block* pBlock, long iIndex);
+	static void SelectBlock(long iIndex);
+	static void SelectAttribute(psdl::block* pBlock, long iIndex);
+	bool TransformEntities(transformProps& sProps);
+
+	static bool TransformCallback(transformProps& sProps)// Called by transform dialog
+	{
+		return this_ptr->TransformEntities(sProps);
+	}
 
 	DocTemplateBase* GetActiveDocument(void);
 	BOOL CanSave(void);
@@ -123,6 +147,13 @@ public:
 	// HistoryManager
 	CString GetUndoDescription(void);
 	CString GetRedoDescription(void);
+
+	static CMainFrame* this_ptr;
+
+	static HWND GetWnd(void)
+	{
+		return this_ptr->m_hWnd;
+	}
 
 private:
 
@@ -138,6 +169,8 @@ private:
 	CPerimeterWindow	m_wndPerimeter;
 	CAttributesWindow	m_wndAttribs;
 	CPropertiesWindow	m_wndProps;
+
+	CTransformDlg		m_dlgTransform;
 
 	static const extMap m_sExtMap[PD_NUM_EXTENSIONS];
 };
