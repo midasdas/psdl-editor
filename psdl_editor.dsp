@@ -197,11 +197,19 @@ SOURCE=.\histmgr.h
 # End Source File
 # Begin Source File
 
+SOURCE=.\inioptions.h
+# End Source File
+# Begin Source File
+
 SOURCE=.\io_error.h
 # End Source File
 # Begin Source File
 
 SOURCE=.\mainfrm.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\options.h
 # End Source File
 # Begin Source File
 
@@ -246,6 +254,10 @@ SOURCE=.\tools.h
 # Begin Source File
 
 SOURCE=.\toolwnd.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\versionno.h
 # End Source File
 # End Group
 # Begin Group "Resource Files"

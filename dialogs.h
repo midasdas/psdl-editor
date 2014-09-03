@@ -43,7 +43,7 @@ struct optimizeProps
 	bool bTextures;
 	bool bEmpty;
 
-	optimizeProps(void) : bTextureRefs(false),
+	optimizeProps(void) : bTextureRefs(true),
 	                      bTextures(false),
 	                      bEmpty(false)
 	{}
@@ -219,6 +219,11 @@ public:
 		GetFileDialogWindow().CenterWindow(lpon->lpOFN->hwndOwner);
 	}
 
+	void SetCaption(LPTSTR szCaption)
+	{
+		m_ofn.lpstrTitle = szCaption;
+	}
+
 	char* GetFileExt(void)
 	{
 		return strrchr(m_szFileName, '.') + 1;
@@ -281,7 +286,7 @@ public:
 		COMMAND_ID_HANDLER(IDCANCEL, OnCloseCmd)
 	END_MSG_MAP()
 
-	CProgressDlg(USER_PROC pProc, void* pParams = NULL, CString strCaption = _T("Loading"), bool bAsync = true)
+	CProgressDlg(USER_PROC pProc, void* pParams = NULL, CString strCaption = _T("Loading"), bool bAsync = false)
 	{
 		m_pProc = pProc;
 		m_pData.pParams = pParams;

@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "dialogs.h"
-#include "psdl-editor.h"
+#include "mainfrm.h"
 
 transformProps g_transformProps;
 duplicateProps g_duplicateProps;

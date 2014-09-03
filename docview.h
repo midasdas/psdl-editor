@@ -23,15 +23,16 @@ class DocTemplateBase;
 typedef struct IOParams
 {
 	std::string strFileName;
-	void** pDoc;
+	void*& pDoc;
 	DocTemplateBase* pDocTmpl;
 	notify_func callbackFunc;
 
 	IOParams(
 		std::string _strFileName,
-		void** _pDoc,
+		void*& _pDoc,
 		DocTemplateBase* _pDocTmpl,
 		notify_func _callbackFunc = default_callback) :
+
 		strFileName(_strFileName),
 		pDoc(_pDoc),
 		pDocTmpl(_pDocTmpl),
@@ -47,8 +48,8 @@ public:
 	virtual std::string GetFileName(bool bFull = false) = 0;
 	virtual error::code OpenDocument(std::string strFileName, notify_func callbackFunc = default_callback) = 0;
 	virtual error::code SaveDocument(std::string strFileName = _T("")) = 0;
-	virtual error::code LoadDocument(void** pDoc, std::string strFileName, notify_func callbackFunc = default_callback) = 0;
-	virtual void SetDocument(void* pDoc, std::string strFileName) = 0;
+	virtual error::code LoadDocument(void*& pDoc, std::string strFileName, notify_func callbackFunc = default_callback) = 0;
+	virtual void SetDocument(void*& pDoc, std::string strFileName) = 0;
 	virtual bool FileExists(void) = 0;
 	virtual bool IsModified(void) = 0;
 	virtual void UpdateViews(void) = 0;
@@ -164,18 +165,18 @@ public:
 		return code;
 	}
 
-	virtual error::code LoadDocument(void** pDoc, std::string strFileName, notify_func callbackFunc = default_callback)
+	virtual error::code LoadDocument(void*& pDoc, std::string strFileName, notify_func callbackFunc = default_callback)
 	{
-		*pDoc = new TDoc();
+		pDoc = new TDoc();
 
-		error::code code = static_cast<TDoc*>(*pDoc)->read_file(strFileName.c_str(), callbackFunc);
+		error::code code = static_cast<TDoc*>(pDoc)->read_file(strFileName.c_str(), callbackFunc);
 
 		callbackFunc(_T(""), 100);
 
 		return code;
 	}
 
-	void SetDocument(void* pDoc, std::string strFileName)
+	void SetDocument(void*& pDoc, std::string strFileName)
 	{
 		if (m_pDoc) delete m_pDoc;
 

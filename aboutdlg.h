@@ -2,6 +2,7 @@
 #define __ABOUTDLG_H__
 
 #include "resource.h"
+#include "versionno.h"
 
 class CAboutDlg : public CDialogImpl<CAboutDlg>
 {
@@ -19,11 +20,11 @@ public:
 		CString sGet, sOut;
 
 		sGet.LoadString(IDS_VERSION);
-		sOut.Format(sGet, VER_FILEVERSION_STR);
+		sOut.Format(sGet, STRFILEVER);
 		SetDlgItemText(IDC_VERSIONSTATIC, sOut);
 
 		sGet.LoadString(IDS_INFO);
-		sOut.Format(sGet, VER_BUILD_STR);
+		sOut.Format(sGet, STRBUILDDATE);
 		SetDlgItemText(IDC_INFOSTATIC, sOut);
 
 		CenterWindow(GetParent());

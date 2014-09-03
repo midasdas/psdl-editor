@@ -3,6 +3,7 @@
 #include "psdl-editor.h"
 #include "strings.h"
 #include "psdl.h"
+#include "mainfrm.h"
 
 void CAttributesWindow::SetBlock(psdl::block* pBlock)
 {

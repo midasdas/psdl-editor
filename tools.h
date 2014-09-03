@@ -3,7 +3,9 @@
 
 #include <gl/gl.h>
 
-#define PI 3.14159265359
+#define PI 3.14159265359f
+#define DEG2RAD(x) (x) * PI / 180.f
+#define RAD2DEG(x) (x) * 180.f / PI
 
 #define LS(stringID) CString(LPCTSTR(stringID))
 
