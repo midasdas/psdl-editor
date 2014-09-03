@@ -34,14 +34,19 @@ public:
 		MESSAGE_HANDLER(WM_ERASEBKGND, OnEraseBkgnd)
 		MESSAGE_HANDLER(WM_KEYDOWN, OnKeyDown);
 		MESSAGE_HANDLER(WM_MOUSEACTIVATE, OnMouseActivate);
+		MESSAGE_HANDLER(WM_MOUSEWHEEL, OnMouseWheel);
 		MESSAGE_HANDLER(WM_MOUSEMOVE, OnMouseMove);
-		MESSAGE_HANDLER(WM_LBUTTONDOWN, OnMouseDownL);
-		MESSAGE_HANDLER(WM_RBUTTONDOWN, OnMouseDownR);
-		MESSAGE_HANDLER(WM_LBUTTONUP, OnMouseUpL);
-		MESSAGE_HANDLER(WM_RBUTTONUP, OnMouseUpR);
+		MESSAGE_RANGE_HANDLER(WM_LBUTTONDOWN, WM_RBUTTONUP, OnMouseClick);
 	END_MSG_MAP()
 
-	COpenGLView() : nWidth(0), nHeight(0), dAspect(0), xPos(0), yPos(0), zPos(0), xRot(0), yRot(0), zoom(1) {}
+	COpenGLView() : nWidth(0), nHeight(0), dAspect(0), xPos(0), yPos(0), zPos(0), xRot(90), yRot(0), fZoom(.1f), mode(0) {}
+
+	void ResetCamera(void)
+	{
+		xPos = yPos = zPos = yRot = 0;
+		xRot = 90;
+		fZoom = .1f;
+	}
 
 	void RenderAxes(void);
 
@@ -71,11 +76,9 @@ public:
 	LRESULT OnPaint(UINT, WPARAM, LPARAM, BOOL&);
 	LRESULT OnSize(UINT, WPARAM, LPARAM, BOOL&);
 	LRESULT OnKeyDown(UINT, WPARAM wParam, LPARAM, BOOL&);
+	LRESULT OnMouseClick(UINT, WPARAM, LPARAM, BOOL&);
+	LRESULT OnMouseWheel(UINT, WPARAM, LPARAM, BOOL&);
 	LRESULT OnMouseMove(UINT, WPARAM, LPARAM, BOOL&);
-	LRESULT OnMouseDownL(UINT, WPARAM, LPARAM, BOOL&);
-	LRESULT OnMouseDownR(UINT, WPARAM, LPARAM, BOOL&);
-	LRESULT OnMouseUpL(UINT, WPARAM, LPARAM, BOOL&);
-	LRESULT OnMouseUpR(UINT, WPARAM, LPARAM, BOOL&);
 
 	LRESULT OnCreate(UINT, WPARAM, LPARAM, BOOL& bHandled)
 	{
@@ -130,15 +133,22 @@ private:
 	int nWidth;
 	int nHeight;
 
-	GLfloat zoom, zoomDrag;
+	enum
+	{
+		pan = 1, rotate, zoom
+	};
+	unsigned char mode;
 
-	GLfloat xMouseDrag, yMouseDrag;
+	bool bWheelZoom;
+	GLfloat fZoom, fZoomStart;
+
+	GLfloat xMouseStart, yMouseStart;
 
 	GLfloat xPos, yPos, zPos;
 	GLfloat xRot, yRot;
 
-	GLfloat xPosDrag, yPosDrag, zPosDrag;
-	GLfloat xRotDrag, yRotDrag;
+	GLfloat xPosStart, yPosStart, zPosStart;
+	GLfloat xRotStart, yRotStart;
 
 	GLfloat translationMatrix[16];
 };

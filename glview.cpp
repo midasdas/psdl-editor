@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "psdl-editor.h"
+#include "options.h"
 #include "glview.h"
 
 #include "tools.h"
@@ -46,7 +47,7 @@ LRESULT COpenGLView::OnPaint(UINT, WPARAM, LPARAM, BOOL&)
  	glPushMatrix();
 		glMatrixMode(GL_PROJECTION);
 			glLoadIdentity();
-			gluPerspective(60.0, dAspect, 1.0, 5000.0);
+			gluPerspective(60.0, dAspect, 1.0, 1000.0);
 		glMatrixMode(GL_MODELVIEW);
 	glPopMatrix();
 
@@ -69,14 +70,18 @@ LRESULT COpenGLView::OnPaint(UINT, WPARAM, LPARAM, BOOL&)
 	glColorMaterial(GL_FRONT, GL_AMBIENT_AND_DIFFUSE);
 
 	glPushMatrix();
-		glTranslatef(0.f, 0.f, -200.f);
 
-		glTranslatef(xPos, yPos, zPos);
+	glPopMatrix();
+
+	glPushMatrix();
+		glTranslatef(0.f, 0.f, -300.f);
+		glScalef(fZoom, fZoom, fZoom);
+
 		glRotatef(xRot, 1.f, 0.f, 0.f);
 		glRotatef(yRot, 0.f, 1.f, 0.f);
-	//	glTranslatef(0, - (GLfloat) cos(xRot / 180 * PI) * yPos, - (GLfloat) sin(xRot / 180 * PI) * yPos);
 
-		glScalef(zoom, zoom, zoom);
+		glTranslatef(xPos, yPos, zPos);
+
 		::SendMessage(GetParent(), WM_PAINT_DESCENDANTS, (WPARAM) m_hDC, (LPARAM) m_hRC);
 	glPopMatrix();
 
@@ -113,12 +118,12 @@ LRESULT COpenGLView::OnKeyDown(UINT, WPARAM wParam, LPARAM, BOOL&)
 
 	switch (wParam)
 	{
-		case VK_UP:		xRot += fAdd; break;
-		case VK_DOWN:	xRot -= fAdd; break;
-		case VK_LEFT:	yRot += fAdd; break;
-		case VK_RIGHT:	yRot -= fAdd; break;
-		case 0x51:      zoom *= 1.1f; break;
-		case 0x57:      zoom /= 1.1f; break;
+		case VK_UP:        xRot += fAdd; break;
+		case VK_DOWN:      xRot -= fAdd; break;
+		case VK_LEFT:      yRot += fAdd; break;
+		case VK_RIGHT:     yRot -= fAdd; break;
+		case VK_OEM_PLUS:  fZoom *= 1.1f; break;
+		case VK_OEM_MINUS: fZoom /= 1.1f; break;
 	}
 
 	xRot = GLfloat((const int) xRot % 360);
@@ -129,83 +134,79 @@ LRESULT COpenGLView::OnKeyDown(UINT, WPARAM wParam, LPARAM, BOOL&)
 	return 0;
 }
 
-LRESULT COpenGLView::OnMouseDownL(UINT, WPARAM, LPARAM lParam, BOOL&)
+LRESULT COpenGLView::OnMouseClick(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL&)
 {
-	xMouseDrag = LOWORD(lParam);
-	yMouseDrag = HIWORD(lParam);
+	mode = 0;
 
-	xRotDrag = xRot;
-	yRotDrag = yRot;
+	if (KEYDOWN(VK_MENU))
+	{
+		xMouseStart = LOWORD(lParam);
+		yMouseStart = HIWORD(lParam);
 
-	xPosDrag = xPos;
-	yPosDrag = yPos;
-	zPosDrag = zPos;
+		if (KEYDOWN(VK_LBUTTON) && KEYDOWN(VK_RBUTTON))
+		{
+			mode = pan;
+			xPosStart = xPos;
+			zPosStart = zPos;
+		}
+		else if (KEYDOWN(VK_LBUTTON))
+		{
+			mode = rotate;
+			xRotStart = xRot;
+			yRotStart = yRot;
+		}
+		else if (KEYDOWN(VK_RBUTTON))
+		{
+			mode = zoom;
+			fZoomStart = fZoom;
+		}
+	}
 
-	SetCapture();
-	return 0;
-}
+	if (mode)
+		SetCapture();
+	else
+		ReleaseCapture();
 
-LRESULT COpenGLView::OnMouseDownR(UINT, WPARAM, LPARAM lParam, BOOL&)
-{
-	xMouseDrag = LOWORD(lParam);
-	yMouseDrag = HIWORD(lParam);
-
-	zoomDrag = zoom;
-	ATLTRACE("\n%f", zoomDrag);
-
-	SetCapture();
-	return 0;
-}
-
-LRESULT COpenGLView::OnMouseUpL(UINT, WPARAM, LPARAM lParam, BOOL&)
-{
-	ReleaseCapture();
-	return 0;
-}
-
-LRESULT COpenGLView::OnMouseUpR(UINT, WPARAM, LPARAM lParam, BOOL&)
-{
-	xMouseDrag = LOWORD(lParam);
-	yMouseDrag = HIWORD(lParam);
-
-	xRotDrag = xRot;
-	yRotDrag = yRot;
 	return 0;
 }
 
 LRESULT COpenGLView::OnMouseMove(UINT, WPARAM wParam, LPARAM lParam, BOOL&)
 {
-	if (KEYDOWN(VK_MENU)) // ALT key
+	if (mode)
 	{
-		int xMouse = GET_X_LPARAM(lParam);
-		int yMouse = GET_Y_LPARAM(lParam);
+		GLfloat dx = GET_X_LPARAM(lParam) - xMouseStart;
+		GLfloat dy = GET_Y_LPARAM(lParam) - yMouseStart;
 
-		if (wParam & MK_LBUTTON)
+		if (mode == pan)
 		{
-			if (wParam & MK_RBUTTON)
-			{
-				xPos = xPosDrag + (xMouse - xMouseDrag) / nWidth * 360.f;
-				yPos = yPosDrag - (yMouse - yMouseDrag) / nHeight * 360.f;
-			//	zPos = zPosDrag + (yMouse - yMouseDrag) / nHeight * 360.f;
-			}
-			else
-			{
-				xRot = xRotDrag + (yMouse - yMouseDrag) / nHeight * 360.f;
-				yRot = yRotDrag + (xMouse - xMouseDrag) / nWidth * 360.f;
+			dx /= fZoom;
+			dy /= fZoom;
 
-				xRot = GLfloat((const int) xRot % 360);
-				yRot = GLfloat((const int) yRot % 360);
-			}
+			xPos = xPosStart;
+			zPos = zPosStart;
 
-			ATLTRACE("\nxPos: %f", xPos);
+			xPos += dx * sin(DEG2RAD(yRot + 90.f)) - dy * sin(DEG2RAD(yRot));
+			zPos -= dx * cos(DEG2RAD(yRot + 90.f)) - dy * cos(DEG2RAD(yRot));
 		}
-/*		else if (wParam & MK_RBUTTON)
+		else if (mode == rotate)
 		{
-			zoom = zoomDrag + (yMouse - yMouseDrag) / nHeight * 4;
-			ATLTRACE("\n%f", zoom);
-		}*/
+			xRot = int(xRotStart + dy / nHeight * 360.f) % 360;
+			yRot = int(yRotStart + dx / nWidth  * 360.f) % 360;
+		}
+		else if (mode == zoom)
+		{
+			fZoom = fZoomStart / (1 + dy / nHeight);
+		}
+
 		Invalidate(TRUE);
 	}
 
+	return 0;
+}
+
+LRESULT COpenGLView::OnMouseWheel(UINT, WPARAM wParam, LPARAM, BOOL&)
+{
+	fZoom *= 1 + short(HIWORD(wParam)) / 1200.f;
+	Invalidate(TRUE);
 	return 0;
 }
