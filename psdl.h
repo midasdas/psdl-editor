@@ -114,10 +114,15 @@ public:
 				return _i_vertices.size();
 			}
 
-			virtual void f_write(std::ofstream& f)
+			virtual void f_write(std::ostream& f)
 			{
 				for (unsigned short i = 0; i < num_vertices(); i++)
 					f.write((char*) &_i_vertices[i], 2);
+			}
+			virtual void f_write(std::basic_ostream<unsigned short>& f)
+			{
+				for (unsigned short i = 0; i < num_vertices(); i++)
+					f.write(&_i_vertices[i], 1);
 			}
 
 		private:
@@ -149,12 +154,22 @@ public:
 				return num_vertices() / 4;
 			}
 
-			void f_write(std::ofstream& f)
+			void f_write(std::ostream& f)
 			{
 				if (!subtype)
 				{
 					unsigned short n_sections = num_sections();
 					f.write((char*) &n_sections, 2);
+				}
+
+				vertex_based::f_write(f);
+			}
+			void f_write(std::basic_ostream<unsigned short>& f)
+			{
+				if (!subtype)
+				{
+					unsigned short n_sections = num_sections();
+					f.write(&n_sections, 1);
 				}
 
 				vertex_based::f_write(f);
@@ -176,12 +191,22 @@ public:
 				return num_vertices() / 2;
 			}
 
-			void f_write(std::ofstream& f)
+			void f_write(std::ostream& f)
 			{
 				if (!subtype)
 				{
 					unsigned short n_sections = num_sections();
 					f.write((char*) &n_sections, 2);
+				}
+
+				vertex_based::f_write(f);
+			}
+			void f_write(std::basic_ostream<unsigned short>& f)
+			{
+				if (!subtype)
+				{
+					unsigned short n_sections = num_sections();
+					f.write(&n_sections, 1);
 				}
 
 				vertex_based::f_write(f);
@@ -233,7 +258,7 @@ public:
 	{
 		public:
 
-			road_triangle_fan() : vertex_based(ATB_ROADTRIANGLEFAN) {}
+			road_triangle_fan(char type = ATB_ROADTRIANGLEFAN) : vertex_based(type) {}
 
 			attribute* clone(void) { return new road_triangle_fan(*this); }
 
@@ -242,7 +267,7 @@ public:
 				return num_vertices() - 2;
 			}
 
-			void f_write(std::ofstream& f)
+			void f_write(std::ostream& f)
 			{
 				if (!subtype)
 				{
@@ -252,10 +277,24 @@ public:
 
 				vertex_based::f_write(f);
 			}
+			void f_write(std::basic_ostream<unsigned short>& f)
+			{
+				if (!subtype)
+				{
+					unsigned short n_triangles = num_triangles();
+					f.write(&n_triangles, 1);
+				}
+
+				vertex_based::f_write(f);
+			}
 	};
 
 // 0x6
-	typedef road_triangle_fan triangle_fan;
+	class triangle_fan : public road_triangle_fan
+	{
+		public:
+			triangle_fan() : road_triangle_fan(ATB_TRIANGLEFAN) {}
+	};
 
 // 0x7
 	class facade_bound : public facade_base, public attribute
@@ -282,7 +321,7 @@ public:
 				return num_vertices() / 6;
 			}
 
-			void f_write(std::ofstream& f)
+			void f_write(std::ostream& f)
 			{
 				if (!subtype)
 				{
@@ -293,6 +332,23 @@ public:
 				f.write((char*) &flags,     1);
 				f.write((char*) &i_texture, 1);
 				f.write((char*) &value,     2);
+
+				vertex_based::f_write(f);
+			}
+			void f_write(std::basic_ostream<unsigned short>& f)
+			{
+				if (!subtype)
+				{
+					unsigned short n_sections = num_sections();
+					f.write(&n_sections, 1);
+				}
+
+				unsigned short us = (flags << 8) | i_texture;
+
+			//	f.write(&flags,     1);
+			//	f.write(&i_texture, 1);
+				f.write(&us,        2);
+				f.write(&value,     2);
 
 				vertex_based::f_write(f);
 			}
@@ -390,7 +446,7 @@ public:
 
 			attribute* clone(void) { return new roof_triangle_fan(*this); }
 
-			void f_write(std::ofstream& f)
+			void f_write(std::ostream& f)
 			{
 				if (!subtype)
 				{
@@ -399,6 +455,18 @@ public:
 				}
 
 				f.write((char*) &i_height, 2);
+
+				vertex_based::f_write(f);
+			}
+			void f_write(std::basic_ostream<unsigned short>& f)
+			{
+				if (!subtype)
+				{
+					unsigned short n_vertices = num_vertices() - 1;
+					f.write(&n_vertices, 1);
+				}
+
+				f.write(&i_height, 1);
 
 				vertex_based::f_write(f);
 			}
@@ -633,10 +701,14 @@ public:
 
 	error::code read_file (const char* filename, notify_func callback = default_callback);
 	error::code write_file(const char* filename);
+	error::code read_sdl  (const char* filename);
+	error::code write_sdl (const char* filename);
 
 	// --- Inline Functions ---
 
-	void add_texname(char* name)        { _textures.push_back(name);    }
+	void add_texname(const char* name)        { _textures.push_back(name); }
+	void add_texname(std::string const& name) { _textures.push_back(name); }
+
 	void add_blockpath(blockpath* path) { _blockpaths.push_back(*path); }
 
 	unsigned long add_height(float height)

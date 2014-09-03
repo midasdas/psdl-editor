@@ -59,6 +59,16 @@ public:
 		baseClass::NewDocument(sFileName);
 	}
 
+	error::code ReadSDL(std::string strFileName)
+	{
+		return m_pDoc->read_sdl(strFileName.c_str());
+	}
+
+	error::code WriteSDL(std::string strFileName)
+	{
+		return m_pDoc->write_sdl(strFileName.c_str());
+	}
+
 	// --- Document Operations ---
 
 	unsigned long NumBlocks(void)

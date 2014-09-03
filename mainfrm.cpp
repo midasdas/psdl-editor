@@ -52,8 +52,10 @@ BOOL CMainFrame::OnIdle()
 	UIEnable(ID_EDIT_UNDO, CanUndo());
 	UIEnable(ID_EDIT_REDO, CanRedo());
 	UIEnable(ID_EDIT_TRANSFORM, !m_dlgTransform);
+	UIEnable(ID_FILE_OPENCONTAININGFOLDER, GetActiveDocument()->FileExists());
 
 	UISetCheck(ID_WINDOWS_CITYBLOCKS, ::IsWindowVisible(m_wndBlocks));
+	UISetCheck(ID_WINDOWS_PERIMETER,  ::IsWindowVisible(m_wndPerimeter));
 	UISetCheck(ID_WINDOWS_ATTRIBUTES, ::IsWindowVisible(m_wndAttribs));
 	UISetCheck(ID_WINDOWS_PROPERTIES, ::IsWindowVisible(m_wndProps));
 
@@ -64,6 +66,14 @@ BOOL CMainFrame::OnIdle()
 
 LRESULT CMainFrame::OnDestroy(UINT, WPARAM, LPARAM, BOOL& bHandled)
 {
+	CString strDocName;
+
+	for (int i = GetMaxEntries() - 1; i >= 0; i--)
+	{
+		if (GetFromList(ID_FILE_MRU_FIRST + i, strDocName))
+			g_options.files.aRecentFiles.push((LPCTSTR) strDocName);
+	}
+
 	bHandled = FALSE;
 	return FALSE;
 }
@@ -94,6 +104,16 @@ LRESULT CMainFrame::OnCreate(UINT, WPARAM, LPARAM, BOOL&)
 
 	UISetCheck(ID_VIEW_TOOLBAR, 1);
 	UISetCheck(ID_VIEW_STATUS_BAR, 1);
+
+	SetMenuHandle(GetSubMenu(GetMenu(), 0));
+	SetMaxEntries(8);
+	SetMaxItemLength(20);
+
+	while (!g_options.files.aRecentFiles.empty())
+	{
+		AddToList(g_options.files.aRecentFiles.top().c_str());
+		g_options.files.aRecentFiles.pop();
+	}
 
 	m_hWndClient = m_view.Create(m_hWnd, rcDefault, NULL, WS_CHILD | WS_VISIBLE, WS_EX_CLIENTEDGE);
 	m_view.SetDCPixelFormat(&pfd);
@@ -157,9 +177,16 @@ LRESULT CMainFrame::OnFileExit(WORD, WORD, HWND, BOOL&)
 	return 0;
 }
 
+LRESULT CMainFrame::OnViewResetCamera(WORD, WORD, HWND, BOOL&)
+{
+	m_view.ResetCamera();
+	m_view.Invalidate();
+	return 0;
+}
+
 LRESULT CMainFrame::OnViewWireframe(WORD, WORD, HWND, BOOL&)
 {
-	g_options.display.bWireframe = !g_options.display.bWireframe;
+	g_options.display.bWireframe ^= 1;
 	m_view.Invalidate();
 	return 0;
 }
@@ -186,11 +213,15 @@ LRESULT CMainFrame::OnViewBar(WORD, WORD wID, HWND, BOOL&)
 {
 	HWND hWnd;
 
-	switch (wID) {
-		case ID_WINDOWS_CITYBLOCKS:	hWnd = m_wndBlocks;		break;
-		case ID_WINDOWS_ATTRIBUTES:	hWnd = m_wndAttribs;	break;
-		case ID_WINDOWS_PROPERTIES:	hWnd = m_wndProps;		break;
-		default: return 0;
+	switch (wID)
+	{
+		case ID_WINDOWS_CITYBLOCKS: hWnd = m_wndBlocks;    break;
+		case ID_WINDOWS_PERIMETER:  hWnd = m_wndPerimeter; break;
+		case ID_WINDOWS_ATTRIBUTES: hWnd = m_wndAttribs;   break;
+		case ID_WINDOWS_PROPERTIES: hWnd = m_wndProps;     break;
+
+		default:
+			return 0;
 	}
 
 	if (::IsWindowVisible(hWnd))
@@ -549,9 +580,9 @@ LRESULT CMainFrame::OnOptimizePSDL(WORD, WORD, HWND, BOOL&)
 
 			for (size_t i = 0; i < m_psdlDoc.NumBlocks(); i++)
 			{
-				unsigned short nTexRef, nLastTexRef = 0;
 				psdl::block* pBlock = m_psdlDoc.GetBlock(i);
-				unsigned char nLastAtbType = -1;
+
+			//	if (pBlock->num_attributes() < 1) continue;
 
 				vector<psdl::attribute*>::iterator it = pBlock->_attributes.begin();
 
@@ -559,42 +590,36 @@ LRESULT CMainFrame::OnOptimizePSDL(WORD, WORD, HWND, BOOL&)
 				{
 					unsigned char nAtbType = (*it)->type;
 
-					switch (nAtbType)
+					if (nAtbType == ATB_TEXTURE)
 					{
-						case ATB_TEXTURE:
-							nTexRef = static_cast<psdl::texture*>(*it)->i_texture;
-
-							if (nLastAtbType == nAtbType)
-							{
-								it = pBlock->_attributes.erase(it-1);
-								pBlock->addAttributeSize(-2);
-							}
-
-							if (nLastTexRef == nTexRef)
-							{
-								if ((*it)->last)
-								{
-									(*(it - 1))->last = true;
-								}
-
-								it = pBlock->_attributes.erase(it);
-								pBlock->addAttributeSize(-2);
-
-								ATLTRACE("Double texture reference: 0x%x = 0x%x\n", nTexRef, nLastTexRef);
-							}
-							else
-							{
-								++it;
-							}
-
-							nLastTexRef = nTexRef;
-							break;
-
-						default:
+						if (it == pBlock->_attributes.end() - 1 ||
+							*(it+1) && (*(it+1))->type == nAtbType)
+						{
+							it = pBlock->_attributes.erase(it);
+						}
+						else
 							++it;
-					}
 
-					nLastAtbType = nAtbType;
+					// WRONG !!
+					/*	if (nLastTexRef == nTexRef)
+						{
+							if ((*it)->last)
+							{
+								(*(it - 1))->last = true;
+							}
+
+							it = pBlock->_attributes.erase(it);
+							pBlock->addAttributeSize(-2);
+
+							ATLTRACE("Double texture reference: 0x%x = 0x%x\n", nTexRef, nLastTexRef);
+						}
+						else
+						{
+							++it;
+						}*/
+					}
+					else
+						++it;
 				}
 
 				if (g_optimizeProps.bTextures)
@@ -706,7 +731,7 @@ LRESULT CMainFrame::OnLaunchMM2(WORD, WORD wID, HWND, BOOL&)
 {
 	SHELLEXECUTEINFO sei;
 	TCHAR lpDir[MAX_PATH];
-	LPCTSTR lpFile = g_options.tools.mm2Exe;
+	LPCTSTR lpFile = g_options.tools.strMM2Exe.c_str();
 
 	_splitpath(lpFile, NULL, lpDir, NULL, NULL);
 
@@ -728,19 +753,37 @@ LRESULT CMainFrame::OnLaunchMM2(WORD, WORD wID, HWND, BOOL&)
 
 	ShellExecuteEx(&sei);
 
-	if (int(sei.hInstApp) == SE_ERR_FNF && IDYES == MessageBox("The path currently set for the Midtown Madness 2 executable is invalid.\nDo you want to specify a new path in the \"Options\" dialog?", "Invalid path", MB_YESNO | MB_ICONQUESTION))
+	if (int(sei.hInstApp) == SE_ERR_FNF &&
+		IDYES == MessageBox("The path currently set for the Midtown Madness 2 executable is invalid.\nDo you want to specify a new path in the \"Options\" dialog?", "Invalid path", MB_YESNO | MB_ICONQUESTION))
 	{
-		COptionsDlg dlg(2);
-		dlg.DoModal();
+	//	COptionsDlg dlg(2);
+	//	dlg.DoModal();
+		ShowOptions(ID_OPTIONS_TOOLS);
 	}
 
 	return 0;
 }
 
-LRESULT CMainFrame::OnOptions(WORD, WORD wID, HWND, BOOL&)
+INT CMainFrame::ShowOptions(INT iPageID = -1)
 {
-	COptionsDlg dlg;
-	dlg.DoModal();
+	COptionsPageGeneral     pgGeneral;
+	COptionsPageTools       pgTools;
+	COptionsPageDirectories pgDirectories;
+
+	COptionsDialog dlg;
+	dlg.AddPage(&pgGeneral);
+	dlg.AddPage(&pgTools);
+	dlg.AddPage(&pgDirectories);
+
+	if (iPageID == ID_OPTIONS_TOOLS)
+		dlg.SetInitialPage(&pgTools);
+
+	return dlg.DoModal();
+}
+
+LRESULT CMainFrame::OnOptions(WORD, WORD, HWND, BOOL&)
+{
+	ShowOptions();
 	return 0;
 }
 
@@ -801,9 +844,105 @@ LRESULT CMainFrame::OnFileNew(WORD wNotifyCode, WORD wID, HWND hWndCtl, BOOL& bH
 	return 0;
 }
 
+BOOL CMainFrame::OpenDocument(CString strDocName)
+{
+	CString strExt = strrchr(strDocName, '.') + 1;
+
+	DocTemplateBase* pDocTmpl = NULL;
+	int iMode = -1;
+
+	for (int i = 0; i < PD_NUM_EXTENSIONS; i++)
+	{
+		if (strcmpi(strExt, m_sExtMap[i].strExt) == 0)
+		{
+			iMode    = m_sExtMap[i].iEditMode;
+			pDocTmpl = m_sExtMap[i].pDocTmpl;
+		}
+	}
+
+	if (pDocTmpl)
+	{
+		void* pDoc = NULL;
+
+		IOParams pio((LPCTSTR) strDocName, pDoc, pDocTmpl);
+
+		strExt.MakeUpper();
+
+		CProgressDlg dlg(&DocTemplateBase::_LoadDocumentThread, &pio, "Loading " + strExt + " file...");
+		dlg.DoModal();
+
+		error::code code = dlg.GetError();
+		ATLTRACE("\nReturn code: %x\n", code);
+
+	//	error::code code = pDocTmpl->OpenDocument(strFileName);
+
+		if (code & error::ok)
+		{
+			pDocTmpl->SetDocument(pDoc, (LPCTSTR) strDocName);
+			pDocTmpl->UpdateViews();
+
+			if (code != error::ok) // additional warnings
+			{
+				if (code & error::cpvs_less_blocks)
+					MessageBox("The CPVS file contains less blocks than the PSDL file currently loaded.\nBlocks will be added to match the size.", LS(IDR_MAINFRAME), MB_ICONINFORMATION);
+
+				else if (code & error::cpvs_more_blocks)
+					MessageBox("The CPVS file contains more blocks than the PSDL file currently loaded.\nBlocks will be removed to match the size.", LS(IDR_MAINFRAME), MB_ICONINFORMATION);
+			}
+
+			if (iMode == ID_MODE_PSDL)
+				m_cpvsDoc.SetPSDL(m_psdlDoc.GetDocument());
+
+			SetEditingMode(iMode);
+			UpdateCaption();
+			AddToList(strDocName);
+
+			m_view.Invalidate();
+			m_view.SetFocus();
+		}
+		else
+		{
+			if (pDoc != NULL) delete pDoc;
+
+			if (code & error::wrong_format)
+			{
+				CString strErr = _T("Error");
+
+				switch (iMode)
+				{
+					case ID_MODE_PSDL: strErr = "Not a PSDL file"; break;
+					case ID_MODE_CPVS: strErr = "Not a CPVS file"; break;
+				}
+
+				MessageBox(strErr, LS(IDR_MAINFRAME), MB_ICONWARNING);
+			}
+			else if (code & error::aborted)
+			{
+				// Do nothing
+			}
+			else
+			{
+				DWORD dwErrorCode = GetLastError();
+				LPTSTR lpMsg = NULL;
+				FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, dwErrorCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR) &lpMsg, 0, NULL);
+				MessageBox(strDocName + "\n\n" + lpMsg, LS(IDR_MAINFRAME), MB_ICONWARNING);
+				LocalFree(lpMsg);
+				return FALSE;
+			}
+		}
+	}
+	else
+	{
+		MessageBox(strDocName + "\n\n" + LS(IDS_INVALID_FILE), LS(IDR_MAINFRAME), MB_ICONWARNING);
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
 LRESULT CMainFrame::OnFileOpen(WORD, WORD, HWND, BOOL& bHandled)
 {
-	DocTemplateBase* pDocTmpl = GetActiveDocument();
+/*	DocTemplateBase* pDocTmpl = GetActiveDocument();
 
 	if (pDocTmpl && pDocTmpl->FileExists() && pDocTmpl->IsModified())
 	{
@@ -816,7 +955,7 @@ LRESULT CMainFrame::OnFileOpen(WORD, WORD, HWND, BOOL& bHandled)
 		else if (ret == IDCANCEL)
 			return 0;
 	}
-
+*/
 	CString sSelectedFile;
 
 	CCenterFileDialog fDlg(TRUE, _T("psdl"), NULL, OFN_HIDEREADONLY, _T("\
@@ -829,104 +968,24 @@ LRESULT CMainFrame::OnFileOpen(WORD, WORD, HWND, BOOL& bHandled)
 		All Files (*.*)\0*.*\0")
 	);
 
-	fDlg.m_ofn.lpstrInitialDir = g_options.files.browseDir;
+	fDlg.m_ofn.lpstrInitialDir = g_options.files.strBrowseDir.c_str();
 
 	if (IDOK == fDlg.DoModal())
 	{
-		g_options.files.browseDir = fDlg.GetFolderPath();
+		g_options.files.strBrowseDir = fDlg.GetFolderPath();
 
-		char* strExtension = fDlg.GetFileExt();
-
-		DocTemplateBase* pDocTmpl = NULL;
-		int iMode = -1;
-
-		for (int i = 0; i < PD_NUM_EXTENSIONS; i++)
-		{
-			if (!strcmpi(strExtension, m_sExtMap[i].strExt))
-			{
-				iMode    = m_sExtMap[i].iEditMode;
-				pDocTmpl = m_sExtMap[i].pDocTmpl;
-			}
-		}
-
-		if (pDocTmpl)
-		{
-			void* pDoc = NULL;
-
-			std::string strFileName(fDlg.GetPathName());
-
-			IOParams pio(strFileName, &pDoc, pDocTmpl);
-
-			CString strExt(strExtension);
-			strExt.MakeUpper();
-
-			CProgressDlg dlg(&DocTemplateBase::_LoadDocumentThread, &pio, "Loading " + strExt + " file...");
-			dlg.DoModal();
-
-			error::code code = dlg.GetError();
-			ATLTRACE("\nReturn code: %x\n", code);
-
-		//	error::code code = pDocTmpl->OpenDocument(strFileName);
-
-			if (code & error::ok)
-			{
-				pDocTmpl->SetDocument(pDoc, strFileName);
-				pDocTmpl->UpdateViews();
-
-				if (code != error::ok) // additional warnings
-				{
-					if (code & error::cpvs_less_blocks)
-						MessageBox("The CPVS file contains less blocks than the PSDL file currently loaded.\nBlocks will be added to match the size.", LS(IDR_MAINFRAME), MB_ICONINFORMATION);
-
-					else if (code & error::cpvs_more_blocks)
-						MessageBox("The CPVS file contains more blocks than the PSDL file currently loaded.\nBlocks will be removed to match the size.", LS(IDR_MAINFRAME), MB_ICONINFORMATION);
-				}
-
-				if (iMode == ID_MODE_PSDL)
-					m_cpvsDoc.SetPSDL(m_psdlDoc.GetDocument());
-
-				SetEditingMode(iMode);
-				UpdateCaption();
-				m_view.Invalidate();
-				m_view.SetFocus();
-			}
-			else
-			{
-				if (pDoc != NULL) delete pDoc;
-
-				if (code & error::wrong_format)
-				{
-					CString strErr = _T("Error");
-
-					switch (iMode)
-					{
-						case ID_MODE_PSDL: strErr = "Not a PSDL file"; break;
-						case ID_MODE_CPVS: strErr = "Not a CPVS file"; break;
-					}
-
-					MessageBox(strErr, LS(IDR_MAINFRAME), MB_ICONWARNING);
-				}
-				else if (code & error::aborted)
-				{
-					// Do nothing
-				}
-				else
-				{
-					DWORD dwErrorCode = GetLastError();
-					LPTSTR lpMsg = NULL;
-					FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, dwErrorCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR) &lpMsg, 0, NULL);
-					MessageBox((CString) fDlg.GetPathName() + "\n\n" + lpMsg, LS(IDR_MAINFRAME), MB_ICONWARNING);
-					LocalFree(lpMsg);
-				}
-			}
-		}
-		else
-		{
-			MessageBox((CString) fDlg.GetPathName() + "\n\n" + LS(IDS_INVALID_FILE), LS(IDR_MAINFRAME), MB_ICONWARNING);
-		}
-
+		OpenDocument(fDlg.GetPathName());
 	}
 
+	return 0;
+}
+
+LRESULT CMainFrame::OnFileOpenRecent(WORD, WORD wID, HWND, BOOL&)
+{
+	CString strDocName;
+	GetFromList(wID, strDocName);
+	if (OpenDocument(strDocName) == FALSE)
+		RemoveFromList(wID);
 	return 0;
 }
 
@@ -940,9 +999,16 @@ LRESULT CMainFrame::OnFileSaveAs(WORD, WORD, HWND, BOOL&)
 
 	if (IDOK == fDlg.DoModal())
 	{
-		if (m_psdlDoc.SaveDocument(fDlg.GetPathName()) == error::ok)
+		HCURSOR hCursor = SetCursor(LoadCursor(NULL, IDC_WAIT));
+
+		error::code code = m_psdlDoc.SaveDocument(fDlg.GetPathName());
+
+		SetCursor(hCursor);
+
+		if (code & error::ok)
 		{
 			UpdateCaption();
+			AddToList(fDlg.GetPathName());
 		}
 		else
 		{
@@ -955,6 +1021,74 @@ LRESULT CMainFrame::OnFileSaveAs(WORD, WORD, HWND, BOOL&)
 	}
 
 	return 0;
+}
+
+LRESULT CMainFrame::OnFileImport(WORD, WORD, HWND, BOOL&)
+{
+	CString sSelectedFile;
+
+	CCenterFileDialog fDlg(TRUE, _T("sdl"), _T(""), OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, _T("\
+		SDL File (*.sdl)\0*.sdl\0")
+	);
+
+	fDlg.SetCaption(_T("Import SDL"));
+
+	if (IDOK == fDlg.DoModal())
+	{
+		HCURSOR hCursor = SetCursor(LoadCursor(NULL, IDC_WAIT));
+
+		error::code code = m_psdlDoc.ReadSDL(fDlg.GetPathName());
+
+		SetCursor(hCursor);
+
+		if (code & error::ok)
+		{
+			m_psdlDoc.UpdateViews();
+			m_view.Invalidate();
+			m_view.SetFocus();
+		}
+		else
+		{
+			DWORD dwErrorCode = GetLastError();
+			LPTSTR lpMsg = NULL;
+			FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, dwErrorCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR) &lpMsg, 0, NULL);
+			MessageBox((CString) fDlg.GetPathName() + "\n\n" + lpMsg, LS(IDR_MAINFRAME), MB_ICONWARNING);
+			LocalFree(lpMsg);
+		}
+	}
+
+	return FALSE;
+}
+
+LRESULT CMainFrame::OnFileExport(WORD, WORD, HWND, BOOL&)
+{
+	CString sSelectedFile;
+
+	CCenterFileDialog fDlg(FALSE, _T("sdl"), _T(""), OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, _T("\
+		SDL File (*.sdl)\0*.sdl\0")
+	);
+
+	fDlg.SetCaption(_T("Export SDL"));
+
+	if (IDOK == fDlg.DoModal())
+	{
+		HCURSOR hCursor = SetCursor(LoadCursor(NULL, IDC_WAIT));
+
+		error::code code = m_psdlDoc.WriteSDL(fDlg.GetPathName());
+
+		SetCursor(hCursor);
+
+		if (code != error::ok)
+		{
+			DWORD dwErrorCode = GetLastError();
+			LPTSTR lpMsg = NULL;
+			FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, dwErrorCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR) &lpMsg, 0, NULL);
+			MessageBox((CString) fDlg.GetPathName() + "\n\n" + lpMsg, LS(IDR_MAINFRAME), MB_ICONWARNING);
+			LocalFree(lpMsg);
+		}
+	}
+
+	return FALSE;
 }
 
 DocTemplateBase* CMainFrame::GetActiveDocument(void)
@@ -1015,7 +1149,7 @@ LRESULT CMainFrame::OnOpenContainingFolder(WORD, WORD, HWND, BOOL&)
 	TCHAR lpDir[MAX_PATH];
 	_splitpath(doc->GetFileName(true).c_str(), NULL, lpDir, NULL, NULL);
 
-	ShellExecute(m_hWnd, NULL, lpDir, NULL, NULL, SW_SHOWNORMAL);
+	ShellExecute(m_hWnd, "open", "explorer", (CString) "/select," + doc->GetFileName(true).c_str(), NULL, SW_SHOWNORMAL);
 
 	return 0;
 }
