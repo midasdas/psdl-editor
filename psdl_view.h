@@ -22,6 +22,11 @@ public:
 	}
 
 	void RenderScene(HDC hDC, HGLRC hRC);
+	error::code LoadTextures(HDC hDC, HGLRC hRC, notify_func callbackFunc = default_callback);
+	error::code UnloadTextures(HDC hDC, HGLRC hRC);
+
+private:
+	std::vector<GLuint> m_textures;
 };
 
 #endif

@@ -69,6 +69,28 @@ public:
 		return m_pDoc->write_sdl(strFileName.c_str());
 	}
 
+	error::code UnloadTextures(HDC hDC, HGLRC hRC)
+	{
+		return m_pView->UnloadTextures(hDC, hRC);
+	}
+
+	error::code LoadTextures(HDC hDC, HGLRC hRC, notify_func callbackFunc = default_callback)
+	{
+		return m_pView->LoadTextures(hDC, hRC, callbackFunc);
+	}
+
+	static unsigned _stdcall _LoadTextures(void* pThreadData)
+	{
+		ThreadData* pData = static_cast<ThreadData*>(pThreadData);
+
+		if (GLParams* pParams = static_cast<GLParams*>(pData->pParams))
+		{
+			return static_cast<PSDLDocTemplate*>(pParams->pDocTmpl)->LoadTextures(pParams->hDC, pParams->hRC, pData->callbackFunc);
+		}
+
+		return error::failure;
+	}
+
 	// --- Document Operations ---
 
 	unsigned long NumBlocks(void)

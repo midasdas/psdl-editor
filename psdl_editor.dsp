@@ -43,7 +43,7 @@ RSC=rc.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /YX /FD /c
-# ADD CPP /nologo /MT /W3 /GX /O2 /I "C:\WTL80\Include" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /YX /FD /c
+# ADD CPP /nologo /MT /W3 /GX /O2 /I "C:\WTL80\Include" /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /FR /YX /FD /c
 # ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD BASE RSC /l 0x813 /d "NDEBUG"
@@ -109,6 +109,10 @@ SOURCE=.\dialogs.cpp
 # Begin Source File
 
 SOURCE=.\glview.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\LoadTGA.cpp
 # End Source File
 # Begin Source File
 

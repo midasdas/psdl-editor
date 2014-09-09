@@ -70,6 +70,13 @@ public:
 	}
 	perimeter_pt;
 
+/*	static float d2v(vertex& v1, vertex& v2)
+	{
+		return sqrtf((v1.x - v2.x) ^ 2 +
+			         (v1.y - v2.y) ^ 2 +
+			         (v1.z - v2.z) ^ 2);
+	}
+*/
 	class attribute
 	{
 		public:

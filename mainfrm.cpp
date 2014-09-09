@@ -52,6 +52,12 @@ BOOL CMainFrame::OnIdle()
 	UIEnable(ID_EDIT_UNDO, CanUndo());
 	UIEnable(ID_EDIT_REDO, CanRedo());
 	UIEnable(ID_EDIT_TRANSFORM, !m_dlgTransform);
+
+	UIEnable(ID_MODE_CPVS, FALSE);
+	UIEnable(ID_MODE_INST, FALSE);
+	UIEnable(ID_MODE_BAI, FALSE);
+	UIEnable(ID_MODE_PATHSET, FALSE);
+
 	UIEnable(ID_FILE_OPENCONTAININGFOLDER, GetActiveDocument()->FileExists());
 
 	UISetCheck(ID_WINDOWS_CITYBLOCKS, ::IsWindowVisible(m_wndBlocks));
@@ -878,7 +884,24 @@ BOOL CMainFrame::OpenDocument(CString strDocName)
 
 		if (code & error::ok)
 		{
+			if (iMode == ID_MODE_PSDL)
+			{
+				m_psdlDoc.UnloadTextures(m_view.m_hDC, m_view.m_hRC);
+			}
+
 			pDocTmpl->SetDocument(pDoc, (LPCTSTR) strDocName);
+
+			ATLTRACE("Working directory: %s\n", pDocTmpl->GetPathName().c_str());
+			SetCurrentDirectory(pDocTmpl->GetPathName().c_str());
+
+			if (iMode == ID_MODE_PSDL)
+			{
+				GLParams pgl(m_view.GetDC(), m_view.GetRC(), &m_psdlDoc);
+				CProgressDlg texDlg(&PSDLDocTemplate::_LoadTextures, &pgl, "Loading PSDL file...");
+				texDlg.DoModal();
+			//	m_psdlDoc.LoadTextures(m_view.m_hDC, m_view.m_hRC);
+			}
+
 			pDocTmpl->UpdateViews();
 
 			if (code != error::ok) // additional warnings
@@ -958,7 +981,7 @@ LRESULT CMainFrame::OnFileOpen(WORD, WORD, HWND, BOOL& bHandled)
 */
 	CString sSelectedFile;
 
-	CCenterFileDialog fDlg(TRUE, _T("psdl"), NULL, OFN_HIDEREADONLY, _T("\
+	CCenterFileDialog fDlg(TRUE, _T("psdl"), NULL, OFN_NOCHANGEDIR | OFN_HIDEREADONLY, _T("\
 		MM2 Files (*.psdl; *.psd; *.cpvs; *.inst; *.bai; *.pathset)\0*.psdl; *.psd; *.cpvs; *.inst; *.bai; *.pathset\0\
 		MM2 City Geometry (*.psdl; *.psd)\0*.psdl; *.psd\0\
 		MM2 Potentially Visible Sets (*.cpvs)\0*.cpvs\0\
@@ -974,7 +997,7 @@ LRESULT CMainFrame::OnFileOpen(WORD, WORD, HWND, BOOL& bHandled)
 	{
 		g_options.files.strBrowseDir = fDlg.GetFolderPath();
 
-		OpenDocument(fDlg.GetPathName());
+		OpenDocument(fDlg.m_szFileName);
 	}
 
 	return 0;
@@ -1043,6 +1066,8 @@ LRESULT CMainFrame::OnFileImport(WORD, WORD, HWND, BOOL&)
 
 		if (code & error::ok)
 		{
+		//	m_psdlDoc.LoadTextures(m_view.m_hDC, m_view.m_hRC);
+			SetEditingMode(ID_MODE_PSDL);
 			m_psdlDoc.UpdateViews();
 			m_view.Invalidate();
 			m_view.SetFocus();

@@ -8,10 +8,24 @@
 #include <math.h>
 #include <gl\glu.h>
 
+void COpenGLView::SetupRC(void)
+{
+	wglMakeCurrent(m_hDC, m_hRC);
+
+	glClearColor(0.f, 0.f, 0.f, 1.f);
+
+	glEnable(GL_CULL_FACE);
+	glEnable(GL_DEPTH_TEST);
+
+	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
+
+	wglMakeCurrent(NULL, NULL);
+}
+
 void COpenGLView::RenderAxes(void)
 {
 	glBegin(GL_LINES);
-		// red x axis
+		// Red X axis
 		glColor3f(1.f,0.f,0.f);
 		glVertex3f(0.0f,0.0f,0.0f);
 		glVertex3f(1.0f,0.0f,0.0f);
@@ -19,7 +33,7 @@ void COpenGLView::RenderAxes(void)
 		glVertex3f(0.9f,0.1f,0.0f);
 		glVertex3f(1.0f,0.0f,0.0f);
 		glVertex3f(0.9f,-0.1f,0.0f);
-		// green y axis
+		// Green Y axis
 		glColor3f(0.f,1.f,0.f);
 		glVertex3f(0.0f,0.0f,0.0f);
 		glVertex3f(0.0f,1.0f,0.0f);
@@ -27,7 +41,7 @@ void COpenGLView::RenderAxes(void)
 		glVertex3f(0.1f,0.9f,0.0f);
 		glVertex3f(0.0f,1.0f,0.0f);
 		glVertex3f(-0.1f,0.9f,0.0f);
-		// blue z axis
+		// Blue Z axis
 		glColor3f(0.f,0.f,1.f);
 		glVertex3f(0.0f,0.0f,0.0f);
 		glVertex3f(0.0f,0.0f,1.0f);
@@ -43,8 +57,9 @@ LRESULT COpenGLView::OnPaint(UINT, WPARAM, LPARAM, BOOL&)
 	wglMakeCurrent(m_hDC, m_hRC);
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glPolygonMode(GL_FRONT, g_options.display.bWireframe ? GL_LINE : GL_FILL);
 
- 	glPushMatrix();
+	glPushMatrix();
 		glMatrixMode(GL_PROJECTION);
 			glLoadIdentity();
 			gluPerspective(60.0, dAspect, 1.0, 1000.0);
@@ -52,26 +67,6 @@ LRESULT COpenGLView::OnPaint(UINT, WPARAM, LPARAM, BOOL&)
 	glPopMatrix();
 
 	glViewport(0, 0, nWidth, nHeight);
-
-	glEnable(GL_CULL_FACE);
-	glPolygonMode(GL_FRONT, g_options.display.bWireframe ? GL_LINE : GL_FILL);
-
-	glEnable(GL_DEPTH_TEST);
-//	glEnable(GL_LIGHTING);
-//	glEnable(GL_NORMALIZE);
-
-	GLfloat ambientLight[] = { 0.3f, 0.3f, 0.3f, 1.0f };
-	GLfloat diffuseLight[] = { 0.7f, 0.7f, 0.7f, 1.0f };
-
-	glLightfv(GL_LIGHT0, GL_AMBIENT, ambientLight);
-	glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuseLight);
-	glEnable(GL_LIGHT0);
-	glEnable(GL_COLOR_MATERIAL);
-	glColorMaterial(GL_FRONT, GL_AMBIENT_AND_DIFFUSE);
-
-	glPushMatrix();
-
-	glPopMatrix();
 
 	glPushMatrix();
 		glTranslatef(0.f, 0.f, -300.f);
@@ -82,10 +77,13 @@ LRESULT COpenGLView::OnPaint(UINT, WPARAM, LPARAM, BOOL&)
 
 		glTranslatef(xPos, yPos, zPos);
 
+		glColor3f(1.f, 1.f, 1.f);
+		glEnable(GL_TEXTURE_2D);
 		::SendMessage(GetParent(), WM_PAINT_DESCENDANTS, (WPARAM) m_hDC, (LPARAM) m_hRC);
+		glDisable(GL_TEXTURE_2D);
 	glPopMatrix();
 
-	glViewport(0, 0, nWidth / 5, nHeight / 5);
+	glViewport(0, 0, nWidth / 6, nHeight / 6);
 
 	glPushMatrix();
 		glTranslatef(0.f, 0.f, -2.5f);
@@ -97,6 +95,7 @@ LRESULT COpenGLView::OnPaint(UINT, WPARAM, LPARAM, BOOL&)
 	SwapBuffers(m_hDC);
 	wglMakeCurrent(NULL, NULL);
 	ValidateRect(NULL);
+
 	return 0;
 }
 

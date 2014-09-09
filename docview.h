@@ -41,11 +41,33 @@ typedef struct IOParams
 }
 IOParams;
 
+typedef struct GLParams
+{
+	HDC hDC;
+	HGLRC hRC;
+	DocTemplateBase* pDocTmpl;
+	notify_func callbackFunc;
+
+	GLParams(
+		HDC _hDC,
+		HGLRC _hRC,
+		DocTemplateBase* _pDocTmpl,
+		notify_func _callbackFunc = default_callback) :
+
+		hDC(_hDC),
+		hRC(_hRC),
+		pDocTmpl(_pDocTmpl),
+		callbackFunc(_callbackFunc)
+	{}
+}
+GLParams;
+
 class DocTemplateBase
 {
 public:
 
 	virtual std::string GetFileName(bool bFull = false) = 0;
+	virtual std::string GetPathName(void) = 0;
 	virtual error::code OpenDocument(std::string strFileName, notify_func callbackFunc = default_callback) = 0;
 	virtual error::code SaveDocument(std::string strFileName = _T("")) = 0;
 	virtual error::code LoadDocument(void*& pDoc, std::string strFileName, notify_func callbackFunc = default_callback) = 0;
@@ -116,10 +138,23 @@ public:
 			
 			if (pos == m_strFileName.npos)
 				pos = m_strFileName.rfind(_T('/'));
-			
+
 			if (pos != m_strFileName.npos)
 				return m_strFileName.substr(++pos);
 		}
+
+		return m_strFileName;
+	}
+
+	std::string GetPathName(void)
+	{
+		size_t pos = m_strFileName.rfind(_T('\\'));
+		
+		if (pos == m_strFileName.npos)
+			pos = m_strFileName.rfind(_T('/'));
+
+		if (pos != m_strFileName.npos)
+			return m_strFileName.substr(0, ++pos);
 
 		return m_strFileName;
 	}
