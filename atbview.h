@@ -158,33 +158,7 @@ class CTunnelView :
 			::SendMessage(GetDlgItem(wID), BM_SETCHECK, bState ? BST_CHECKED : BST_UNCHECKED, 0);
 		}
 
-		LRESULT OnCheckClicked(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL&)
-		{
-			unsigned char nBit;
-
-			switch (wID)
-			{
-				case IDC_LEFT:			nBit = BIT_LEFT;			break;
-				case IDC_RIGHT:			nBit = BIT_RIGHT;			break;
-				case IDC_CLOSEDSTART_L:	nBit = BIT_CLOSEDSTART_L;	break;
-				case IDC_CLOSEDEND_L:	nBit = BIT_CLOSEDEND_L;		break;
-				case IDC_CLOSEDSTART_R:	nBit = BIT_CLOSEDSTART_R;	break;
-				case IDC_CLOSEDEND_R:	nBit = BIT_CLOSEDEND_R;		break;
-				case IDC_OFFSETSTART_L:	nBit = BIT_OFFSETSTART_L;	break;
-				case IDC_OFFSETEND_L:	nBit = BIT_OFFSETEND_L;		break;
-				case IDC_OFFSETSTART_R:	nBit = BIT_OFFSETSTART_R;	break;
-				case IDC_OFFSETEND_R:	nBit = BIT_OFFSETEND_R;		break;
-				case IDC_CURVEDWALL:	nBit = BIT_CURVEDSIDES;		break;
-				case IDC_FLAT:			nBit = BIT_CULLED;			break;
-				case IDC_CURVED:		nBit = BIT_CURVEDCEILING;	break;
-
-				default: return 0;
-			}
-
-			m_atb->set_flag(nBit, BST_CHECKED == ::SendMessage(GetDlgItem(wID), BM_GETCHECK, 0, 0));
-
-			return 0;
-		}
+		LRESULT OnCheckClicked(WORD, WORD, HWND, BOOL&);
 
 		LRESULT OnRadioClicked(WORD wNotifyCode, WORD, HWND, BOOL&)
 		{

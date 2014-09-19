@@ -5,6 +5,7 @@
 
 #include <fstream>
 #include <vector>
+#include <math.h>
 
 #define BIT_UNKNOWN1		0x01 // 00000001
 #define BIT_SUBTERANEAN		0x02 // 00000010
@@ -70,13 +71,16 @@ public:
 	}
 	perimeter_pt;
 
-/*	static float d2v(vertex& v1, vertex& v2)
+	static float d2v(vertex* v1, vertex* v2)
 	{
-		return sqrtf((v1.x - v2.x) ^ 2 +
-			         (v1.y - v2.y) ^ 2 +
-			         (v1.z - v2.z) ^ 2);
+		float dx = v1->x - v2->x;
+	//	float dy = v1->y - v2->y;
+		float dy = 0;
+		float dz = v1->z - v2->z;
+
+		return sqrtf(dx * dx + dy * dy + dz * dz);
 	}
-*/
+
 	class attribute
 	{
 		public:

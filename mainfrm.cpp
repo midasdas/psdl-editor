@@ -1050,11 +1050,12 @@ LRESULT CMainFrame::OnFileImport(WORD, WORD, HWND, BOOL&)
 {
 	CString sSelectedFile;
 
-	CCenterFileDialog fDlg(TRUE, _T("sdl"), _T(""), OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, _T("\
-		SDL File (*.sdl)\0*.sdl\0")
+	CCenterFileDialog fDlg(TRUE, NULL, NULL, OFN_HIDEREADONLY, _T("\
+		3D Studio Mesh (*.3ds)\0*.3ds\0\
+		MM2 SDL (*.sdl)\0*.sdl\0")
 	);
 
-	fDlg.SetCaption(_T("Import SDL"));
+	fDlg.SetCaption(_T("Import"));
 
 	if (IDOK == fDlg.DoModal())
 	{
@@ -1066,7 +1067,7 @@ LRESULT CMainFrame::OnFileImport(WORD, WORD, HWND, BOOL&)
 
 		if (code & error::ok)
 		{
-		//	m_psdlDoc.LoadTextures(m_view.m_hDC, m_view.m_hRC);
+			m_psdlDoc.LoadTextures(m_view.m_hDC, m_view.m_hRC);
 			SetEditingMode(ID_MODE_PSDL);
 			m_psdlDoc.UpdateViews();
 			m_view.Invalidate();
@@ -1090,10 +1091,10 @@ LRESULT CMainFrame::OnFileExport(WORD, WORD, HWND, BOOL&)
 	CString sSelectedFile;
 
 	CCenterFileDialog fDlg(FALSE, _T("sdl"), _T(""), OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, _T("\
-		SDL File (*.sdl)\0*.sdl\0")
+		MM2 SDL (*.sdl)\0*.sdl\0")
 	);
 
-	fDlg.SetCaption(_T("Export SDL"));
+	fDlg.SetCaption(_T("Export"));
 
 	if (IDOK == fDlg.DoModal())
 	{

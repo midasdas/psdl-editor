@@ -20,7 +20,7 @@ psdl::attribute* psdl::block::get_attribute(unsigned long i_pos)
 error::code psdl::read_file(const char* filename, notify_func callback)
 {
 	clock_t start_time = clock();
-	
+
 	unsigned long i, n_size;
 
 	ifstream f(filename, ios::in | ios::binary);
@@ -359,7 +359,7 @@ error::code psdl::read_file(const char* filename, notify_func callback)
 					f.read((char*) &static_cast<facade*>(atb)->right,    2);
 					break;
 
-				case 0xc: // Roof triangle fan
+				case 0xc:
 					atb = new roof_triangle_fan();
 					{
 						unsigned short k, nVertices, vertexRef;
