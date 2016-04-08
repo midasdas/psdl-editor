@@ -1,11 +1,14 @@
 PSDL Editor
 ===========
 
-PSDL Editor is a map editor for [Midtown Madness 2][1]. Development started in April 2011.
+PSDL Editor is a map editor for [Midtown Madness 2][2] and other [Angel Studios][3] games.
 
-**[Download latest release][2]**
+At this time the program is highly experimental and practically useless. Use it at your own risk.
 
-![PSDL Editor](https://cloud.githubusercontent.com/assets/825337/4142875/228a630c-33c0-11e4-9a50-78b3a1add515.jpg)
+**[Download latest release][1]**
 
-[1]: http://en.wikipedia.org/wiki/Midtown_Madness_2
-[2]: https://github.com/midasdas/psdl-editor/releases
+![PSDL Editor](https://cloud.githubusercontent.com/assets/825337/14371366/36428496-fd37-11e5-8c63-c146c9ce28c7.png)
+
+[1]: https://github.com/midasdas/psdl-editor/releases
+[2]: http://en.wikipedia.org/wiki/Midtown_Madness_2
+[3]: https://en.wikipedia.org/wiki/Rockstar_San_Diego
