@@ -139,7 +139,29 @@ class CLayersHeaderCtrl : public CWindowImpl<CLayersHeaderCtrl, CHeaderCtrl>
 		EndPaint(&ps);
 		return FALSE;
 	}
+/*
+	void OnDrawItem(UINT, LPDRAWITEMSTRUCT lpdis)
+	{
+		MessageBox("Lol");
+		if (lpdis->itemID == 1)
+		{
+			CDCHandle dc(lpdis->hDC);
+			m_ImageList.Draw(dc, 2, lpdis->rcItem.left, lpdis->rcItem.top, ILD_NORMAL);
+		}
+	}
 
+	LRESULT OnCreate(UINT, WPARAM, LPARAM, BOOL&)
+	{
+		HD_ITEM hditem;
+ 
+		hditem.mask = HDI_FORMAT;
+		GetItem(1, &hditem);
+		hditem.fmt |= HDF_OWNERDRAW;
+		SetItem(1, &hditem);
+
+		return FALSE;
+	}
+*/
 	LRESULT OnEraseBkgnd(UINT, WPARAM, LPARAM, BOOL&)
 	{
 		return TRUE;

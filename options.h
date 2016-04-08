@@ -4,21 +4,23 @@
 #include <iostream>
 #include <stack>
 
-struct GlobalOptions
+extern struct GlobalOptions
 {
 	struct GeneralOptions
 	{
 		bool test;
 
-		GeneralOptions() : test(true) {}
+		GeneralOptions() : test(false) {}
 	}
 	general;
 
 	struct DisplayOptions
 	{
 		bool bWireframe;
+		bool bTextures;
+		bool bTextureNearest;
 
-		DisplayOptions() : bWireframe(false) {}
+		DisplayOptions() : bWireframe(false), bTextures(true), bTextureNearest(false) {}
 	}
 	display;
 
@@ -41,8 +43,21 @@ struct GlobalOptions
 		std::string strMM2Exe;
 	}
 	tools;
-};
 
-extern GlobalOptions g_options;
+	struct Dialogs
+	{
+		struct GeneratePerimeters
+		{
+			bool bNeighbours;
+			bool bDeleteExisting;
+			bool bSelection;
+
+			GeneratePerimeters() : bNeighbours(false), bDeleteExisting(true), bSelection(true) {}
+		}
+		gen_perimeters;
+	}
+	dialogs;
+}
+g_options;
 
 #endif

@@ -78,10 +78,10 @@ LRESULT COpenGLView::OnPaint(UINT, WPARAM, LPARAM, BOOL&)
 		glTranslatef(xPos, yPos, zPos);
 
 		glColor3f(1.f, 1.f, 1.f);
-		glEnable(GL_TEXTURE_2D);
+
 		::SendMessage(GetParent(), WM_PAINT_DESCENDANTS, (WPARAM) m_hDC, (LPARAM) m_hRC);
-		glDisable(GL_TEXTURE_2D);
-	glPopMatrix();
+
+		glPopMatrix();
 
 	glViewport(0, 0, nWidth / 6, nHeight / 6);
 
@@ -189,8 +189,8 @@ LRESULT COpenGLView::OnMouseMove(UINT, WPARAM wParam, LPARAM lParam, BOOL&)
 		}
 		else if (mode == rotate)
 		{
-			xRot = int(xRotStart + dy / nHeight * 360.f) % 360;
-			yRot = int(yRotStart + dx / nWidth  * 360.f) % 360;
+			xRot = fmodf(xRotStart + 360.f * dy / nHeight, 360.f);
+			yRot = fmodf(yRotStart + 360.f * dx / nWidth , 360.f);
 		}
 		else if (mode == zoom)
 		{

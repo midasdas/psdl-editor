@@ -40,6 +40,75 @@ LRESULT CTextureView::OnInitDialog(UINT, WPARAM, LPARAM, BOOL&)
 	return FALSE;
 }
 
+LRESULT CTunnelView::OnInitDialog(UINT, WPARAM, LPARAM, BOOL&)
+{
+	SetRedraw(FALSE);
+
+	SetState(IDC_RAILING,      !m_atb->get_flag(BIT_STYLE));
+	SetState(IDC_WALL,			m_atb->get_flag(BIT_STYLE));
+	SetState(IDC_LEFT,			m_atb->get_flag(BIT_LEFT));
+	SetState(IDC_RIGHT,			m_atb->get_flag(BIT_RIGHT));
+	SetState(IDC_CLOSEDSTART_L,	m_atb->get_flag(BIT_CLOSEDSTART_L));
+	SetState(IDC_CLOSEDEND_L,	m_atb->get_flag(BIT_CLOSEDEND_L));
+	SetState(IDC_CLOSEDSTART_R,	m_atb->get_flag(BIT_CLOSEDSTART_R));
+	SetState(IDC_CLOSEDEND_R,	m_atb->get_flag(BIT_CLOSEDEND_R));
+	SetState(IDC_OFFSETSTART_L,	m_atb->get_flag(BIT_OFFSETSTART_L));
+	SetState(IDC_OFFSETEND_L,	m_atb->get_flag(BIT_OFFSETEND_L));
+	SetState(IDC_OFFSETSTART_R,	m_atb->get_flag(BIT_OFFSETSTART_R));
+	SetState(IDC_OFFSETEND_R,	m_atb->get_flag(BIT_OFFSETEND_R));
+	SetState(IDC_CURVEDWALL,	m_atb->get_flag(BIT_CURVEDSIDES));
+	SetState(IDC_FLAT,			m_atb->get_flag(BIT_CULLED));
+	SetState(IDC_CURVED,		m_atb->get_flag(BIT_CURVEDCEILING));
+
+	CWindow wnd(m_hWnd);
+	RECT rc;
+
+	::GetWindowRect(GetDlgItem(IDC_PLACEHOLDER), &rc);
+	wnd.ScreenToClient(&rc);
+
+	m_list.Create(m_hWnd, rc, NULL, WS_CHILD |
+		LVS_OWNERDRAWFIXED | LVS_REPORT | LVS_NOSORTHEADER,
+		WS_EX_STATICEDGE, IDC_LIST);
+
+	if (m_atb->subtype)
+	{
+		::ShowWindow(GetDlgItem(IDC_GROUP3), SW_HIDE);
+		::ShowWindow(GetDlgItem(IDC_PLACEHOLDER), SW_HIDE);
+	}
+	else
+	{
+		m_list.SetExtendedListViewStyle(LVS_EX_FULLROWSELECT);
+
+		m_list.InsertColumn(0, _T("#"));
+		m_list.InsertColumn(1, _T("-"));
+
+		m_list.SetColumnWidth(0, 60);
+		m_list.SetColumnWidth(1, 60);
+
+		for (unsigned short i = 0; i < static_cast<psdl::junction*>(m_atb)->num_walls(); ++i)
+		{
+			LVITEM lvi;
+			lvi.iItem = i;
+			lvi.iSubItem = 1;
+			lvi.mask = LVIF_TEXT;
+			lvi.pszText = static_cast<psdl::junction*>(m_atb)->get_wall(i) ? _T("+") : _T("-");
+
+			CString str;
+			str.Format("%02x", i);
+
+			m_list.InsertItem(i, str);
+			m_list.SetItem(&lvi);
+		}
+
+		m_list.ShowWindow(SW_SHOW);
+	}
+
+	SetRedraw();
+
+	DlgResize_Init(false, true, WS_CHILD | WS_VISIBLE);
+	return FALSE;
+}
+
 LRESULT CTunnelView::OnCheckClicked(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL&)
 {
 	unsigned char nBit;
@@ -68,4 +137,73 @@ LRESULT CTunnelView::OnCheckClicked(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndC
 	CMainFrame::GetView()->Invalidate();
 
 	return 0;
+}
+
+LRESULT CTunnelView::OnClick(int, LPNMHDR lpnmh, BOOL&)
+{
+	NMITEMACTIVATE* nmia = (NMITEMACTIVATE*) lpnmh;
+
+	if (nmia->iItem >= 0)
+	{
+		if (nmia->iSubItem == 1)
+		{
+			static_cast<psdl::junction*>(m_atb)->set_wall(nmia->iItem, !static_cast<psdl::junction*>(m_atb)->get_wall(nmia->iItem));
+
+			m_list.RedrawItems(nmia->iItem, nmia->iItem);
+			CMainFrame::GetView()->Invalidate();
+		}
+	}
+
+	return FALSE;
+}
+
+void CTunnelView::DrawItem(LPDRAWITEMSTRUCT lpdis)
+{
+	CDCHandle dc(lpdis->hDC);
+
+	dc.SetTextColor(GetSysColor(lpdis->itemState & ODS_SELECTED ? COLOR_HIGHLIGHTTEXT : COLOR_WINDOWTEXT));
+	dc.SetBkColor  (GetSysColor(lpdis->itemState & ODS_SELECTED ? COLOR_HIGHLIGHT     : COLOR_WINDOW));
+
+	TEXTMETRIC tm;
+	dc.GetTextMetrics(&tm);
+	int y1 = (lpdis->rcItem.bottom + lpdis->rcItem.top - tm.tmHeight) / 2;
+
+	CString str;
+	RECT rc;
+
+	// Subitem 0
+	m_list.GetSubItemRect(lpdis->itemID, 0, LVIR_BOUNDS, &rc);
+
+	str.Format("%0*x", 2, lpdis->itemID);
+	dc.ExtTextOut(rc.left + 3, y1, ETO_CLIPPED | ETO_OPAQUE, &rc, str, str.GetLength(), NULL);
+
+	// Subitem 1
+	m_list.GetSubItemRect(lpdis->itemID, 1, LVIR_BOUNDS, &rc);
+
+	rc.top++;
+	rc.bottom--;
+
+	dc.DrawFrameControl(&rc, DFC_BUTTON, DFCS_BUTTONCHECK | DFCS_FLAT |
+		
+		(static_cast<psdl::junction*>(m_atb)->get_wall(lpdis->itemID) ? DFCS_CHECKED : 0)
+
+	);
+
+/*	CString strBlock("-");
+
+	psdl::perimeter_pt* pp = m_pBlock->get_perimeter_point(lpdis->itemID);
+
+	str.Format("%x, ", pp->vertex);
+
+	if (pp->block > 0)
+		strBlock.Format("%x", pp->block);
+
+	str += strBlock;
+
+	dc.ExtTextOut(rc.left + 4, y1, ETO_CLIPPED | ETO_OPAQUE, &rc, str, str.GetLength());*/
+}
+
+void CTunnelView::MeasureItem(LPMEASUREITEMSTRUCT lpmis)
+{
+	lpmis->itemHeight = 15;
 }

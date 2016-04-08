@@ -131,7 +131,8 @@ class CTextureView :
 
 class CTunnelView :
 	public CPropViewImpl<CTunnelView>,
-	public CDialogResize<CTunnelView>
+	public CDialogResize<CTunnelView>,
+	public COwnerDraw<CTunnelView>
 {
 	public:
 		enum { IDD = IDD_ATB_TUNNEL };
@@ -139,13 +140,19 @@ class CTunnelView :
 		BEGIN_DLGRESIZE_MAP(CTunnelView)
 			DLGRESIZE_CONTROL(IDC_GROUP1, DLSZ_SIZE_X)
 			DLGRESIZE_CONTROL(IDC_GROUP2, DLSZ_SIZE_X)
+			DLGRESIZE_CONTROL(IDC_GROUP3, DLSZ_SIZE_X)
+			DLGRESIZE_CONTROL(IDC_GROUP3, DLSZ_SIZE_Y)
+			DLGRESIZE_CONTROL(IDC_LIST,   DLSZ_SIZE_X)
+			DLGRESIZE_CONTROL(IDC_LIST,   DLSZ_SIZE_Y)
 		END_DLGRESIZE_MAP()
 
 		BEGIN_MSG_MAP(CTunnelView)
 			COMMAND_RANGE_HANDLER(IDC_RAILING, IDC_WALL, OnRadioClicked)
 			COMMAND_CODE_HANDLER(BN_CLICKED, OnCheckClicked)
 			MESSAGE_HANDLER(WM_INITDIALOG, OnInitDialog)
+			NOTIFY_HANDLER(IDC_LIST, NM_CLICK, OnClick)
 			CHAIN_MSG_MAP(CDialogResize<CTunnelView>)
+			CHAIN_MSG_MAP(COwnerDraw<CTunnelView>)
 		END_MSG_MAP()
 
 		CTunnelView(psdl::attribute *pAtb)
@@ -169,34 +176,14 @@ class CTunnelView :
 			return 0;
 		}
 
-		LRESULT OnInitDialog(UINT, WPARAM, LPARAM, BOOL&)
-		{
-			SetRedraw(FALSE);
-
-			SetState(IDC_RAILING,		!m_atb->get_flag(BIT_STYLE));
-			SetState(IDC_WALL,			m_atb->get_flag(BIT_STYLE));
-			SetState(IDC_LEFT,			m_atb->get_flag(BIT_LEFT));
-			SetState(IDC_RIGHT,			m_atb->get_flag(BIT_RIGHT));
-			SetState(IDC_CLOSEDSTART_L,	m_atb->get_flag(BIT_CLOSEDSTART_L));
-			SetState(IDC_CLOSEDEND_L,	m_atb->get_flag(BIT_CLOSEDEND_L));
-			SetState(IDC_CLOSEDSTART_R,	m_atb->get_flag(BIT_CLOSEDSTART_R));
-			SetState(IDC_CLOSEDEND_R,	m_atb->get_flag(BIT_CLOSEDEND_R));
-			SetState(IDC_OFFSETSTART_L,	m_atb->get_flag(BIT_OFFSETSTART_L));
-			SetState(IDC_OFFSETEND_L,	m_atb->get_flag(BIT_OFFSETEND_L));
-			SetState(IDC_OFFSETSTART_R,	m_atb->get_flag(BIT_OFFSETSTART_R));
-			SetState(IDC_OFFSETEND_R,	m_atb->get_flag(BIT_OFFSETEND_R));
-			SetState(IDC_CURVEDWALL,	m_atb->get_flag(BIT_CURVEDSIDES));
-			SetState(IDC_FLAT,			m_atb->get_flag(BIT_CULLED));
-			SetState(IDC_CURVED,		m_atb->get_flag(BIT_CURVEDCEILING));
-
-			SetRedraw();
-
-			DlgResize_Init(false, true, WS_CHILD | WS_VISIBLE);
-			return FALSE;
-		}
+		LRESULT OnInitDialog(UINT, WPARAM, LPARAM, BOOL&);
+		LRESULT OnClick(int, LPNMHDR lpnmh, BOOL&);
+		void DrawItem(LPDRAWITEMSTRUCT lpDrawItemStruct);
+		void MeasureItem(LPMEASUREITEMSTRUCT lpMeasureItemStruct);
 
 	private:
 
+		CListViewCtrl m_list;
 		psdl::tunnel* m_atb;
 };
 

@@ -55,10 +55,10 @@ public:
 	#endif
 		UPDATE_ELEMENT(ID_EDIT_TRANSFORM,            UPDUI_MENUPOPUP)
 		UPDATE_ELEMENT(ID_VIEW_TOOLBAR,              UPDUI_MENUPOPUP)
-		UPDATE_ELEMENT(ID_WINDOWS_CITYBLOCKS,        UPDUI_MENUPOPUP)
-		UPDATE_ELEMENT(ID_WINDOWS_PERIMETER,         UPDUI_MENUPOPUP)
-		UPDATE_ELEMENT(ID_WINDOWS_ATTRIBUTES,        UPDUI_MENUPOPUP)
-		UPDATE_ELEMENT(ID_WINDOWS_PROPERTIES,        UPDUI_MENUPOPUP)
+		UPDATE_ELEMENT(ID_WINDOWS_CITYBLOCKS,        UPDUI_MENUPOPUP | UPDUI_TOOLBAR)
+		UPDATE_ELEMENT(ID_WINDOWS_PERIMETER,         UPDUI_MENUPOPUP | UPDUI_TOOLBAR)
+		UPDATE_ELEMENT(ID_WINDOWS_ATTRIBUTES,        UPDUI_MENUPOPUP | UPDUI_TOOLBAR)
+		UPDATE_ELEMENT(ID_WINDOWS_PROPERTIES,        UPDUI_MENUPOPUP | UPDUI_TOOLBAR)
 		UPDATE_ELEMENT(ID_VIEW_WIREFRAME,            UPDUI_MENUPOPUP)
 		UPDATE_ELEMENT(ID_VIEW_STATUS_BAR,           UPDUI_MENUPOPUP)
 		UPDATE_ELEMENT(ID_MODE_PSDL,                 UPDUI_MENUPOPUP | UPDUI_TOOLBAR)
@@ -98,8 +98,8 @@ public:
 
 		COMMAND_ID_HANDLER(ID_INSERT_CITYBLOCK, OnInsertBlock)
 		COMMAND_ID_HANDLER(ID_INSERT_DUPLICATE_BLOCKS, OnDuplicateBlock)
-		COMMAND_ID_HANDLER(ID_INSERT_GENERATE_PERIMETERS, OnGeneratePerimeters)
 
+		COMMAND_ID_HANDLER(ID_TOOLS_GENERATE_PERIMETERS, OnGeneratePerimeters)
 		COMMAND_ID_HANDLER(ID_TOOLS_OPTIMIZE, OnOptimizePSDL)
 		COMMAND_ID_HANDLER(ID_TOOLS_MM2, OnLaunchMM2)
 		COMMAND_ID_HANDLER(ID_TOOLS_OPTIONS, OnOptions)
@@ -150,9 +150,9 @@ public:
 	void SetEditingMode(int iMode);
 	static void SelectBlock(long iIndex);
 	static void SelectAttribute(psdl::block* pBlock, long iIndex);
-	bool TransformEntities(transformProps& sProps);
+	bool TransformEntities(TransformProps& sProps);
 
-	static bool TransformCallback(transformProps& sProps)// Called by transform dialog
+	static bool _TransformEntities(TransformProps& sProps) // Called by transform dialog
 	{
 		return this_ptr->TransformEntities(sProps);
 	}

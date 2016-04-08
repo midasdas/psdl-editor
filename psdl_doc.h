@@ -59,6 +59,8 @@ public:
 		baseClass::NewDocument(sFileName);
 	}
 
+	error::code Read3DS(std::string strFileName);
+
 	error::code ReadSDL(std::string strFileName)
 	{
 		return m_pDoc->read_sdl(strFileName.c_str());

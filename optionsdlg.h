@@ -66,6 +66,35 @@ public:
 	}
 };
 
+class COptionsPageRendering :
+	public COptionsPageImpl<COptionsPageRendering>,
+	public CWinDataExchange<COptionsPageRendering>
+{
+public:
+	enum { IDD = IDD_OPTIONS_RENDER };
+
+	BEGIN_MSG_MAP(COptionsPageRendering)
+		MESSAGE_HANDLER(WM_INITDIALOG, OnInitDialog)
+	END_MSG_MAP()
+
+	BEGIN_DDX_MAP(COptionsPageTools)
+		DDX_CHECK(IDC_USE_TEXTURES, g_options.display.bTextures)
+		DDX_CHECK(IDC_TEXTURE_FILTER, g_options.display.bTextureNearest)
+	END_DDX_MAP()
+
+	LRESULT OnInitDialog(UINT, WPARAM, LPARAM, BOOL&)
+	{
+		DoDataExchange(FALSE);
+		return 1;
+	}
+
+	void OnOk(void)
+	{
+		DoDataExchange(TRUE);
+	//	CMainFrame::GetView()->Invalidate();
+	}
+};
+
 class COptionsPageTools :
 	public COptionsPageImpl<COptionsPageTools>,
 	public CWinDataExchange<COptionsPageTools>

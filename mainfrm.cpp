@@ -279,9 +279,9 @@ LRESULT CMainFrame::OnEditTransform(WORD, WORD wID, HWND, BOOL&)
 	return 0;
 }
 
-bool CMainFrame::TransformEntities(transformProps& sProps)
+bool CMainFrame::TransformEntities(TransformProps& sProps)
 {
-	std::vector<unsigned long> aVerts;
+/*	std::vector<unsigned long> aVerts;
 
 	int iBlock = -1;
 
@@ -372,7 +372,7 @@ bool CMainFrame::TransformEntities(transformProps& sProps)
 		m_view.Invalidate();
 		return true;
 	}
-
+*/
 	return false;
 }
 
@@ -521,7 +521,7 @@ LRESULT CMainFrame::OnDuplicateBlock(WORD, WORD wID, HWND, BOOL&)
 */
 	return 0;
 }
-
+/*
 LRESULT CMainFrame::OnGeneratePerimeters(WORD, WORD, HWND, BOOL&)
 {
 	int iItem = -1;
@@ -568,6 +568,43 @@ LRESULT CMainFrame::OnGeneratePerimeters(WORD, WORD, HWND, BOOL&)
 	if (nGenerated < 1)
 	{
 		MessageBox(_T("No perimeters to generate"), LS(IDR_MAINFRAME), MB_ICONWARNING);
+	}
+
+	return FALSE;
+}
+*/
+/*
+LRESULT CMainFrame::OnDeleteBlock(WORD, WORD, HWND, BOOL&)
+{
+	vector<psdl::block*> blocks = m_wndBlocks.GetSelected();
+	vector<psdl::block*>::iterator i;
+
+	for (i = blocks.begin(); i != blocks.end(); ++i)
+	{
+		delete *i;
+	}
+
+	return FALSE;
+}
+*/
+LRESULT CMainFrame::OnGeneratePerimeters(WORD, WORD, HWND, BOOL&)
+{
+	CPerimetersDlg dlg;
+
+	if (IDOK == dlg.DoModal())
+	{
+		vector<psdl::block*> blocks = m_wndBlocks.GetSelected();
+		vector<psdl::block*>::iterator i;
+
+		for (i = blocks.begin(); i != blocks.end(); ++i)
+		{
+			if (g_options.dialogs.gen_perimeters.bDeleteExisting)
+				(*i)->_perimeter.clear();
+
+			(*i)->generate_perimeter();
+
+			ATLTRACE("Block %x done\n", i - blocks.begin());
+		}
 	}
 
 	return FALSE;
@@ -736,10 +773,13 @@ LRESULT CMainFrame::OnOptimizePSDL(WORD, WORD, HWND, BOOL&)
 LRESULT CMainFrame::OnLaunchMM2(WORD, WORD wID, HWND, BOOL&)
 {
 	SHELLEXECUTEINFO sei;
-	TCHAR lpDir[MAX_PATH];
 	LPCTSTR lpFile = g_options.tools.strMM2Exe.c_str();
+	LPCTSTR lpDir  = g_options.tools.strMM2Dir.c_str();
 
-	_splitpath(lpFile, NULL, lpDir, NULL, NULL);
+//	_splitpath(lpFile, NULL, lpDir, NULL, NULL);
+//	ExpandEnvironmentStrings(lpDirEnv, lpDir, MAX_PATH);
+
+	ATLTRACE("\n%s\n", lpDir);
 
 	ZeroMemory(&sei, sizeof(SHELLEXECUTEINFO));
 
@@ -773,11 +813,13 @@ LRESULT CMainFrame::OnLaunchMM2(WORD, WORD wID, HWND, BOOL&)
 INT CMainFrame::ShowOptions(INT iPageID = -1)
 {
 	COptionsPageGeneral     pgGeneral;
+	COptionsPageRendering   pgRendering;
 	COptionsPageTools       pgTools;
 	COptionsPageDirectories pgDirectories;
 
 	COptionsDialog dlg;
 	dlg.AddPage(&pgGeneral);
+	dlg.AddPage(&pgRendering);
 	dlg.AddPage(&pgTools);
 	dlg.AddPage(&pgDirectories);
 
@@ -1061,7 +1103,15 @@ LRESULT CMainFrame::OnFileImport(WORD, WORD, HWND, BOOL&)
 	{
 		HCURSOR hCursor = SetCursor(LoadCursor(NULL, IDC_WAIT));
 
-		error::code code = m_psdlDoc.ReadSDL(fDlg.GetPathName());
+		LPTSTR strDocName = fDlg.GetPathName();
+		CString strExt = strrchr(strDocName, '.') + 1;
+
+		error::code code = error::failure;
+
+		if (strcmpi(strExt, "3ds") == 0)
+			code = m_psdlDoc.Read3DS(strDocName); else
+		if (strcmpi(strExt, "sdl") == 0)
+			code = m_psdlDoc.ReadSDL(strDocName);
 
 		SetCursor(hCursor);
 

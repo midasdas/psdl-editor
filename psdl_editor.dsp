@@ -92,6 +92,10 @@ LINK32=link.exe
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 # Begin Source File
 
+SOURCE=.\aboutdlg.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\atbview.cpp
 # End Source File
 # Begin Source File
@@ -129,6 +133,10 @@ SOURCE=".\psdl-editor.cpp"
 # Begin Source File
 
 SOURCE=.\psdl.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\psdl_doc.cpp
 # End Source File
 # Begin Source File
 
@@ -270,6 +278,10 @@ SOURCE=.\versionno.h
 # Begin Source File
 
 SOURCE=.\res\111a.ico
+# End Source File
+# Begin Source File
+
+SOURCE=.\res\flash4.bmp
 # End Source File
 # Begin Source File
 

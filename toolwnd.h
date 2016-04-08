@@ -273,6 +273,17 @@ private:
 		AdjustColumns();
 	}
 
+	std::vector<psdl::block*> GetSelected(void)
+	{
+		std::vector<psdl::block*> blocks;
+		int i = -1;
+
+		while ((i = m_list.GetNextItem(i, LVNI_SELECTED)) >= 0)
+			blocks.push_back(m_pDoc->get_block(i));
+
+		return blocks;
+	}
+
 	void SetPSDL(psdl* pDoc)
 	{
 		m_pDoc = pDoc;
@@ -280,7 +291,7 @@ private:
 		m_list.SetRedraw(FALSE);
 		m_list.DeleteAllItems();
 
-		for (int i = 0; i < pDoc->num_blocks(); i++)
+		for (int i = 0; i < pDoc->num_blocks(); ++i)
 			m_list.InsertItem(i, _T(""));
 
 	//	m_nDigits = CalcLZeros(i);

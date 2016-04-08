@@ -2,6 +2,7 @@
 #define __DLGS_H__
 
 #include "resource.h"
+#include "options.h"
 #include "ctrls.h"
 #include "io_error.h"
 #include "thread.h"
@@ -9,16 +10,16 @@
 #include <vector>
 #include <algorithm>
 
-struct transformProps
+struct TransformProps
 {
 	float fX, fY, fZ, fAngle;
 
-	transformProps(void) :
+	TransformProps(void) :
 		fX(0), fY(0), fZ(0), fAngle(0)
 	{}
 };
 
-struct duplicateProps
+extern struct DuplicateProps
 {
 	unsigned int nCount;
 	bool bVertices;
@@ -28,29 +29,28 @@ struct duplicateProps
 	bool bExclude;
 	std::vector<unsigned char> aAttributes;
 
-	duplicateProps(void) : nCount(1),
+	DuplicateProps(void) : nCount(1),
 	                       bVertices(true),
 	                       bPerimeters(true),
 	                       bNeighbours(true),
 	                       bTextures(false),
 	                       bExclude(false)
 	{}
-};
+}
+g_duplicateProps;
 
-struct optimizeProps
+extern struct OptimizeProps
 {
 	bool bTextureRefs;
 	bool bTextures;
 	bool bEmpty;
 
-	optimizeProps(void) : bTextureRefs(true),
+	OptimizeProps(void) : bTextureRefs(true),
 	                      bTextures(false),
 	                      bEmpty(false)
 	{}
-};
-
-extern duplicateProps g_duplicateProps;
-extern optimizeProps  g_optimizeProps;
+}
+g_optimizeProps;
 
 class CTransformDlg :
 	public CDialogImpl<CTransformDlg>,
@@ -101,7 +101,7 @@ public:
 	LRESULT OnCloseCmd(WORD, WORD wID, HWND, BOOL&);
 
 	CNumUpDownCtrl m_udX, m_udY, m_udZ, m_udAngle;
-	transformProps m_sProps;
+	TransformProps m_sProps;
 };
 
 class CDuplicateDlg :
@@ -153,10 +153,43 @@ public:
 
 	LRESULT OnReset(WORD, WORD wID, HWND, BOOL&)
 	{
-		g_duplicateProps = duplicateProps();
+		g_duplicateProps = DuplicateProps();
 		DoDataExchange(FALSE);
 		NextDlgCtrl();
 		return TRUE;
+	}
+};
+
+class CPerimetersDlg :
+	public CDialogImpl<CPerimetersDlg>,
+	public CWinDataExchange<CPerimetersDlg>
+{
+public:
+
+	BEGIN_DDX_MAP(CPerimetersDlg)
+		DDX_CHECK(IDC_NEIGHBOURS, g_options.dialogs.gen_perimeters.bNeighbours)
+	END_DDX_MAP()
+
+	enum { IDD = IDD_PERIMETERS };
+
+	BEGIN_MSG_MAP(CPerimetersDlg)
+		MESSAGE_HANDLER(WM_INITDIALOG, OnInitDialog)
+		COMMAND_ID_HANDLER(IDOK, OnCloseCmd)
+		COMMAND_ID_HANDLER(IDCANCEL, OnCloseCmd)
+	END_MSG_MAP()
+
+	LRESULT OnInitDialog(UINT, WPARAM, LPARAM, BOOL&)
+	{
+		CenterWindow(GetParent());
+		DoDataExchange(FALSE);
+		return TRUE;
+	}
+
+	LRESULT OnCloseCmd(WORD, WORD wID, HWND, BOOL&)
+	{
+		DoDataExchange(TRUE);
+		EndDialog(wID);
+		return FALSE;
 	}
 };
 
