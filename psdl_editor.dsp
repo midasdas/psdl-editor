@@ -47,7 +47,7 @@ RSC=rc.exe
 # ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD BASE RSC /l 0x813 /d "NDEBUG"
-# ADD RSC /l 0x813 /i "C:\WTL80\Include" /d "NDEBUG"
+# ADD RSC /l 0x809 /i "C:\WTL80\Include" /d "NDEBUG"
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
@@ -69,7 +69,7 @@ LINK32=link.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /YX /FD /GZ /c
-# ADD CPP /nologo /MTd /W3 /Gm /GX /ZI /Od /I "C:\WTL80\Include" /I "C:\boost_1_32_0" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /FR /YX /FD /GZ /c
+# ADD CPP /nologo /MTd /W3 /GX /ZI /Od /I "C:\WTL80\Include" /I "C:\glut\include" /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /FR /YX /FD /GZ /c
 # ADD BASE MTL /nologo /D "_DEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "_DEBUG" /mktyplib203 /win32
 # ADD BASE RSC /l 0x813 /d "_DEBUG"
@@ -79,7 +79,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:windows /debug /machine:I386 /pdbtype:sept
-# ADD LINK32 opengl32.lib glu32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:windows /debug /machine:I386 /pdbtype:sept
+# ADD LINK32 glut32.lib opengl32.lib glu32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:windows /debug /machine:I386 /pdbtype:sept /libpath:"C:\glut\lib"
 
 !ENDIF 
 
@@ -92,11 +92,31 @@ LINK32=link.exe
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 # Begin Source File
 
+SOURCE=.\3dtypes.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\aboutdlg.cpp
 # End Source File
 # Begin Source File
 
 SOURCE=.\atbview.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\bai.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\bai_doc.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\bai_view.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\config.cpp
 # End Source File
 # Begin Source File
 
@@ -109,6 +129,10 @@ SOURCE=.\ctrls.cpp
 # Begin Source File
 
 SOURCE=.\dialogs.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\files.cpp
 # End Source File
 # Begin Source File
 
@@ -169,11 +193,31 @@ SOURCE=.\toolwnd.cpp
 # PROP Default_Filter "h;hpp;hxx;hm;inl"
 # Begin Source File
 
+SOURCE=.\3dtypes.h
+# End Source File
+# Begin Source File
+
 SOURCE=.\aboutdlg.h
 # End Source File
 # Begin Source File
 
 SOURCE=.\atbview.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\bai.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\bai_doc.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\bai_view.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\config.h
 # End Source File
 # Begin Source File
 
@@ -201,6 +245,10 @@ SOURCE=.\docview.h
 # End Source File
 # Begin Source File
 
+SOURCE=.\files.h
+# End Source File
+# Begin Source File
+
 SOURCE=.\glview.h
 # End Source File
 # Begin Source File
@@ -218,10 +266,6 @@ SOURCE=.\io_error.h
 # Begin Source File
 
 SOURCE=.\mainfrm.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\options.h
 # End Source File
 # Begin Source File
 
