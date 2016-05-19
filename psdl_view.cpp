@@ -1,20 +1,32 @@
 #include "stdafx.h"
 #include "psdl_view.h"
 #include "tools.h"
-#include "options.h"
+#include "config.h"
+#include "mainfrm.h"
 
 #include "gltools.h"
+
+#include <vector>
 
 #define GL_CLAMP_TO_EDGE   0x812F
 #define GL_MIRRORED_REPEAT 0x8370
 
-#define INVALID_FILE_ATTRIBUTES 0xFFFFFFFF
+using namespace std;
 
-error::code PSDLView::LoadTextures(HDC hDC, HGLRC hRC, notify_func callbackFunc)
+error::code PSDLView::LoadTextures(ProgressMonitor* pMonitor)
 {
-	callbackFunc("Loading textures...", 0);
+	HDC hDC = CMainFrame::GetView()->GetDC();
+	HGLRC hRC = CMainFrame::GetView()->GetRC();
+	return LoadTextures(hDC, hRC, pMonitor);
+}
+
+error::code PSDLView::LoadTextures(HDC hDC, HGLRC hRC, ProgressMonitor* pMonitor)
+{
+//	callbackFunc("Loading textures...", 0);
+	pMonitor->setNote("Loading textures...");
 
 	unsigned long n_tex = m_pDoc->num_textures();
+	pMonitor->setMaximum(n_tex);
 
 	GLint iWidth, iHeight, iComponents;
 	GLenum eFormat;
@@ -22,53 +34,77 @@ error::code PSDLView::LoadTextures(HDC hDC, HGLRC hRC, notify_func callbackFunc)
 
 	wglMakeCurrent(hDC, hRC);
 
-	m_textures.resize(n_tex + 1);
-	m_textures[0] = 0;
-	glGenTextures(n_tex, &m_textures[1]);
+//	m_textures.resize(n_tex + 1);
+//	m_textures[0] = 0;
+//	glGenTextures(n_tex, &m_textures[1]);
+	m_textures.resize(n_tex);
+	glGenTextures(n_tex, &m_textures[0]);
 
-//	const CString sAnim = "-0007";
+	const CString sAnim = "-0001";
 	const CString sExt = ".tga";
 
 //	GLfloat fLargest;
 //	glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &fLargest);
 
+	vector<string> searchPaths;
+	searchPaths.push_back("../texture/");
+	searchPaths.insert(searchPaths.end(), config.directories.texturePaths.begin(), config.directories.texturePaths.end());
+
+	unsigned int j;
+	unsigned int nSearchPaths = searchPaths.size();
+
 	for (unsigned long i = 0; i < n_tex; )
 	{
 		if (!m_pDoc->get_texname(i).empty())
 		{
-			CString sTexName = (CString) "../texture/" + m_pDoc->get_texname(i).c_str();
-
-		//	if (GetFileAttributes(sTexName + sAnim + sExt) != INVALID_FILE_ATTRIBUTES)
-		//		sTexName += sAnim;
-
-			sTexName += sExt;
-
-			if (pBytes = gltLoadTGA(sTexName, &iWidth, &iHeight, &iComponents, &eFormat))
+			for (j = 0; j < nSearchPaths; ++j)
 			{
-				glBindTexture(GL_TEXTURE_2D, m_textures[i]);
+				CString sTexName = (CString) searchPaths[j].c_str() + m_pDoc->get_texname(i).c_str();
 
-				glTexImage2D(GL_TEXTURE_2D, 0, iComponents, iWidth, iHeight,
-											0, eFormat, GL_UNSIGNED_BYTE, pBytes);
-				free(pBytes);
+				if (GetFileAttributes(sTexName + sExt) == INVALID_FILE_ATTRIBUTES)
+				{
+					if (GetFileAttributes(sTexName + sAnim + sExt) == INVALID_FILE_ATTRIBUTES)
+						continue;
+					else
+						sTexName += sAnim;
+				}
 
-				GLint iFilter = g_options.display.bTextureNearest ? GL_NEAREST : GL_LINEAR;
+			//	if (GetFileAttributes(sTexName + sAnim + sExt) != INVALID_FILE_ATTRIBUTES)
+			//		sTexName += sAnim;
 
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, iFilter);
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, iFilter);
-			//	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-			//	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-			//	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, fLargest);
+				sTexName += sExt;
+
+				if (pBytes = gltLoadTGA(sTexName, &iWidth, &iHeight, &iComponents, &eFormat))
+				{
+					glBindTexture(GL_TEXTURE_2D, m_textures[i]);
+
+					glTexImage2D(GL_TEXTURE_2D, 0, iComponents, iWidth, iHeight,
+												0, eFormat, GL_UNSIGNED_BYTE, pBytes);
+					free(pBytes);
+
+					GLint iFilter = config.display.bTextureNearest ? GL_NEAREST : GL_LINEAR;
+
+					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, iFilter);
+					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, iFilter);
+				//	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+				//	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+				//	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, fLargest);
+				}
+				else
+				{
+					ATLTRACE("Cannot load %s\n", sTexName);
+				}
 			}
-			else
-				ATLTRACE("Cannot load %s\n", sTexName);
 		}
 
-		callbackFunc("", 100 * ++i / n_tex);
+	//	callbackFunc("", 100 * ++i / n_tex);
+		++i;
+		pMonitor->setProgress(i);
 	}
 
 	wglMakeCurrent(NULL, NULL);
 
-	callbackFunc("", 100);
+//	callbackFunc("", 100);
 
 	return error::ok;
 }
@@ -79,40 +115,61 @@ error::code PSDLView::UnloadTextures(HDC hDC, HGLRC hRC)
 	return error::ok;
 }
 
-void PSDLView::RenderScene(HDC hDC, HGLRC hRC)
+void PSDLView::RenderScene(void)
 {
+//	wglMakeCurrent(hDC, hRC);
+
 	unsigned short nHue = 0;
+
+	// Bounding box
+	{
+		Vertex *v1, *v2;
+		v1 = &m_pDoc->v_min;
+		v2 = &m_pDoc->v_max;
+
+		glColor3f(0.2f, 0.3f, 0.3f);
+		glBegin(GL_LINE_LOOP);
+			glVertex3f(v1->x, 0, v1->z);
+			glVertex3f(v1->x, 0, v2->z);
+			glVertex3f(v2->x, 0, v2->z);
+			glVertex3f(v2->x, 0, v1->z);
+		glEnd();
+	}
+
+	vector<unsigned long> blockIDs;
+	vector<psdl::block*> selBlocks = CMainFrame::BlocksWindow()->GetSelected(&blockIDs);
+
+	glColor3f(0.2f, 0.2f, 1.0f);
+	glLineWidth(2);
+
+	for (vector<psdl::block*>::iterator it = selBlocks.begin(); it != selBlocks.end(); ++it)
+	{
+		glBegin(GL_LINE_LOOP);
+		for (unsigned long i = 0; i < (*it)->num_perimeters(); ++i)
+		{
+			Vertex* v = m_pDoc->get_vertex((*it)->get_perimeter_point(i)->vertex);
+			glVertex3fv(&(v->x));
+		}
+		glEnd();
+	}
+
+	glLineWidth(1);
+	glColor3f(1, 1, 1);
 
 	for (unsigned long i = 0; i < m_pDoc->num_blocks(); ++i)
 	{
+		if (config.display.bTestPVS && m_pCPVS->pvsLists[ blockIDs[0] ][i] != true) continue;
+
 		psdl::block* pBlock = m_pDoc->get_block(i);
 
 		if (!pBlock->enabled) continue;
 
-		psdl::texture*  pTexAtb = NULL;
-		psdl::tunnel*   pTunnelAtb = NULL;
+		psdl::texture* pTexAtb = NULL;
+		psdl::tunnel*  pTunnelAtb = NULL;
 		GLuint iTunnelTex = 0;
 
 		unsigned long iTex = 0;
-
 		glDisable(GL_TEXTURE_2D);
-
-		// Bounding box
-		{
-			psdl::vertex *v1, *v2;
-			v1 = &m_pDoc->v_min;
-			v2 = &m_pDoc->v_max;
-
-			glColor3f(0.2f, 0.3f, 0.3f);
-			glBegin(GL_LINE_LOOP);
-				glVertex3f(v1->x, 0, v1->z);
-				glVertex3f(v1->x, 0, v2->z);
-				glVertex3f(v2->x, 0, v2->z);
-				glVertex3f(v2->x, 0, v1->z);
-			glEnd();
-		}
-
-		glColor3f(1, 1, 1);
 
 		for (unsigned long j = 0; j < pBlock->num_attributes(); ++j)
 		{
@@ -125,7 +182,7 @@ void PSDLView::RenderScene(HDC hDC, HGLRC hRC)
 	case ATB_DIVIDEDROAD:
 		{
 			psdl::road_strip* pTAtb = static_cast<psdl::road_strip*>(pAtb);
-			psdl::vertex* v;
+			Vertex* v;
 
 			unsigned short k, p, n = pTAtb->num_sections() - 1;
 			GLfloat s;
@@ -255,7 +312,7 @@ void PSDLView::RenderScene(HDC hDC, HGLRC hRC)
 
 				glBindTexture(GL_TEXTURE_2D, m_textures[pDAtb->i_texture]);
 
-				switch (pDAtb->divider_type)
+				switch (pDAtb->divider_type())
 				{
 					case 1:
 						glBindTexture(GL_TEXTURE_2D, m_textures[pDAtb->i_texture + 1]);
@@ -362,7 +419,7 @@ void PSDLView::RenderScene(HDC hDC, HGLRC hRC)
 
 					case 3:
 						{
-							psdl::vertex *v1, *v2, *v3, *v4;
+							Vertex *v1, *v2, *v3, *v4;
 
 							const GLfloat fHeight = 1.f;
 							const GLfloat fWidth  = 0.4f;
@@ -465,8 +522,8 @@ void PSDLView::RenderScene(HDC hDC, HGLRC hRC)
 
 			if (pTunnelAtb)
 			{
-				psdl::vertex* v1;
-				psdl::vertex* v2;
+				Vertex* v1;
+				Vertex* v2;
 				GLfloat s;
 			//	GLfloat fThick = 2.0f;
 
@@ -600,8 +657,8 @@ void PSDLView::RenderScene(HDC hDC, HGLRC hRC)
 
 			if (pTunnelAtb)
 			{
-				psdl::vertex* v1;
-				psdl::vertex* v2;
+				Vertex* v1;
+				Vertex* v2;
 				GLfloat s, a, b;
 				GLfloat fThick = 2.0f;
 
@@ -696,7 +753,7 @@ void PSDLView::RenderScene(HDC hDC, HGLRC hRC)
 	case ATB_SIDEWALK:
 		{
 			psdl::sidewalk_strip* pTAtb = static_cast<psdl::sidewalk_strip*>(pAtb);
-			psdl::vertex* v;
+			Vertex* v;
 			unsigned short k;
 
 			glBindTexture(GL_TEXTURE_2D, m_textures[iTex + 1]);
@@ -767,7 +824,7 @@ void PSDLView::RenderScene(HDC hDC, HGLRC hRC)
 	case ATB_SLIVER:
 		{
 			psdl::sliver* pTAtb = static_cast<psdl::sliver*>(pAtb);
-			psdl::vertex *v1, *v2;
+			Vertex *v1, *v2;
 
 			GLfloat scale = m_pDoc->get_height(pTAtb->tex_scale);
 
@@ -811,7 +868,7 @@ void PSDLView::RenderScene(HDC hDC, HGLRC hRC)
 	case ATB_ROADTRIANGLEFAN:
 		{
 			psdl::road_triangle_fan* pTAtb = static_cast<psdl::road_triangle_fan*>(pAtb);
-			const psdl::vertex* v;
+			const Vertex* v;
 
 			glBindTexture(GL_TEXTURE_2D, m_textures[iTex]);
 			glBegin(GL_TRIANGLE_FAN);
@@ -827,7 +884,7 @@ void PSDLView::RenderScene(HDC hDC, HGLRC hRC)
 	case ATB_ROOFTRIANGLEFAN:
 		{
 			psdl::roof_triangle_fan* pTAtb = static_cast<psdl::roof_triangle_fan*>(pAtb);
-			psdl::vertex* v;
+			Vertex* v;
 
 			glBegin(GL_TRIANGLE_FAN);
 			for (unsigned short k = 0; k < pTAtb->num_vertices(); ++k)
@@ -842,7 +899,7 @@ void PSDLView::RenderScene(HDC hDC, HGLRC hRC)
 	case ATB_DIVIDEDROAD:
 		{
 			psdl::divided_road_strip* pTAtb = static_cast<psdl::divided_road_strip*>(pAtb);
-			psdl::vertex* v;
+			Vertex* v;
 
 			unsigned short k, n = pTAtb->num_sections() - 1;
 			GLfloat s;
@@ -1058,7 +1115,7 @@ void PSDLView::RenderScene(HDC hDC, HGLRC hRC)
 
 			GLfloat s, fHeight = pTAtb->height1;
 			unsigned short k, l;
-			psdl::vertex *v1, *v2;
+			Vertex *v1, *v2;
 
 			for (k = 0; k < pBlock->num_perimeters(); ++k)
 			{
@@ -1087,7 +1144,7 @@ void PSDLView::RenderScene(HDC hDC, HGLRC hRC)
 		break;
 
 	case ATB_TEXTURE:
-		if (g_options.display.bTextures)
+		if (config.display.bTextures)
 		{
 			unsigned long iTexture = static_cast<psdl::texture*>(pAtb)->i_texture;
 			if (iTexture < m_textures.size())
@@ -1096,11 +1153,11 @@ void PSDLView::RenderScene(HDC hDC, HGLRC hRC)
 				glEnable(GL_TEXTURE_2D);
 				iTex = iTexture;
 			}
-		//	else
-		//	{
-		//		glBindTexture(GL_TEXTURE_2D, 0);
-		//		iTex = 0;
-		//	}
+			else
+			{
+				iTex = 0;
+				glBindTexture(GL_TEXTURE_2D, iTex);
+			}
 		}
 		else
 		{
@@ -1138,4 +1195,7 @@ void PSDLView::RenderScene(HDC hDC, HGLRC hRC)
 			}
 		}
 	}
+
+	glDisable(GL_TEXTURE_2D);
+//	wglMakeCurrent(NULL, NULL);
 }
