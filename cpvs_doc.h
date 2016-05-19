@@ -19,6 +19,11 @@ public:
 
 	CPVSDocTemplate(void) : m_pPSDL(NULL) { baseClass(); }
 
+	std::string GetExtensionString(void) const
+	{
+		return _T("Potentially Visible Sets (*.cpvs)\0*.cpvs\0");
+	}
+
 	void SetViews(CBlocksWindow* pBlocksWindow)
 	{
 		m_pBlocksWindow = pBlocksWindow;
@@ -30,9 +35,9 @@ public:
 		m_pView->SetPSDL(m_pPSDL);
 	}
 
-	void RenderScene(HDC hDC, HGLRC hRC)
+	void RenderScene(void)
 	{
-		m_pView->RenderScene(hDC, hRC);
+		m_pView->RenderScene();
 	}
 
 	void NewDocument(std::string sFileName = _T("untitled.cpvs"))
@@ -40,13 +45,13 @@ public:
 		baseClass::NewDocument(sFileName);
 	}
 
-	error::code OpenDocument(std::string strFileName, notify_func callbackFunc)
+	error::code OpenDocument(std::string strFileName, ProgressMonitor* pMonitor)
 	{
 		cpvs* pDoc = new cpvs();
 
-		error::code code = pDoc->read_file(strFileName.c_str(), callbackFunc, m_pPSDL);
+		error::code code = pDoc->read_file(strFileName.c_str(), pMonitor, m_pPSDL);
 
-		callbackFunc(_T(""), 100);
+	//	callbackFunc(_T(""), 100);
 
 		if (code & error::ok)
 		{

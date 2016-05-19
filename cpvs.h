@@ -4,11 +4,17 @@
 #include "psdl.h"
 #include "io_error.h"
 
+#include <vector>
+
 class cpvs
 {
 public:
+//	typedef std::vector< unsigned long > PVSList; // I use block ID's, not bit arrays
+	typedef std::vector< bool > PVSList;
 
-	error::code read_file (const char* filename, notify_func callback = default_callback, psdl* psdl = NULL);
+	std::vector< PVSList > pvsLists;
+
+	error::code read_file (const char* filename, ProgressMonitor* monitor, psdl* psdl = NULL);
 	error::code write_file(const char* filename);
 };
 

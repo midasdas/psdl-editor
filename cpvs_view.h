@@ -12,8 +12,10 @@ public:
 
 	CPVSView(void) : m_pPSDL(NULL), iBlock(-1) { View<cpvs>(); }
 
-	void RenderScene(HDC hDC, HGLRC hRC)
+	void RenderScene(void)
 	{
+	//	wglMakeCurrent(hDC, hRC);
+
 /*		psdl::block* pBlock = m_pPSDL->get_block(iBlock);
 		if (!pBlock) return;
 
@@ -36,6 +38,7 @@ public:
 
 		glLineWidth(1.f);
 		glEnable(GL_TEXTURE_2D);*/
+	//	wglMakeCurrent(NULL, NULL);
 	}
 
 	void SetPSDL(psdl* pPSDL)
