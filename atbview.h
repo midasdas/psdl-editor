@@ -60,8 +60,10 @@ public:
 
 	LRESULT OnInitDialog(UINT, WPARAM, LPARAM, BOOL&)
 	{
+		SetRedraw(FALSE);
 		DlgResize_Init(false, false, WS_CHILD | WS_VISIBLE);
-		return FALSE;
+		SetRedraw();
+		return 0;
 	}
 };
 
@@ -107,20 +109,23 @@ class CTextureView :
 
 		BEGIN_DLGRESIZE_MAP(CTextureView)
 			DLGRESIZE_CONTROL(IDC_EDIT, DLSZ_SIZE_X)
+			DLGRESIZE_CONTROL(IDC_PLACEHOLDER, DLSZ_SIZE_X | DLSZ_SIZE_Y)
 		END_DLGRESIZE_MAP()
 
 		BEGIN_DDX_MAP(CTextureView)
 			DDX_TEXT(IDC_EDIT, m_textureName)
 		END_DDX_MAP()
 
-		BEGIN_MSG_MAP(CTextureView)
+		BEGIN_MSG_MAP_EX(CTextureView)
 			MESSAGE_HANDLER(WM_INITDIALOG, OnInitDialog)
+			MSG_WM_DRAWITEM(OnDrawItem)
 			CHAIN_MSG_MAP(CDialogResize<CTextureView>)
 		END_MSG_MAP()
 
 		CTextureView(psdl::attribute* pAtb, psdl* pDoc) : m_pAtb(pAtb), m_pDoc(pDoc) {}
 
 		LRESULT OnInitDialog(UINT, WPARAM, LPARAM, BOOL&);
+		void OnDrawItem(UINT, LPDRAWITEMSTRUCT lpdis);
 
 	private:
 		psdl* m_pDoc;
@@ -146,13 +151,16 @@ class CTunnelView :
 			DLGRESIZE_CONTROL(IDC_LIST,   DLSZ_SIZE_Y)
 		END_DLGRESIZE_MAP()
 
-		BEGIN_MSG_MAP(CTunnelView)
+		BEGIN_MSG_MAP_EX(CTunnelView)
 			COMMAND_RANGE_HANDLER(IDC_RAILING, IDC_WALL, OnRadioClicked)
 			COMMAND_CODE_HANDLER(BN_CLICKED, OnCheckClicked)
+			COMMAND_RANGE_CODE_HANDLER_EX(IDC_SPIN1, IDC_SPIN2, CN_VALUECHANGED, OnEditChange)
 			MESSAGE_HANDLER(WM_INITDIALOG, OnInitDialog)
 			NOTIFY_HANDLER(IDC_LIST, NM_CLICK, OnClick)
+		//	NOTIFY_CODE_HANDLER(UDN_DELTAPOS, OnDeltaPos)
 			CHAIN_MSG_MAP(CDialogResize<CTunnelView>)
 			CHAIN_MSG_MAP(COwnerDraw<CTunnelView>)
+			REFLECT_NOTIFICATIONS()
 		END_MSG_MAP()
 
 		CTunnelView(psdl::attribute *pAtb)
@@ -166,6 +174,7 @@ class CTunnelView :
 		}
 
 		LRESULT OnCheckClicked(WORD, WORD, HWND, BOOL&);
+		LRESULT OnEditChange  (UINT, int, HWND);
 
 		LRESULT OnRadioClicked(WORD wNotifyCode, WORD, HWND, BOOL&)
 		{
@@ -177,14 +186,18 @@ class CTunnelView :
 		}
 
 		LRESULT OnInitDialog(UINT, WPARAM, LPARAM, BOOL&);
-		LRESULT OnClick(int, LPNMHDR lpnmh, BOOL&);
+		LRESULT OnClick     (int, LPNMHDR lpnmh, BOOL&);
+		LRESULT OnDeltaPos  (int wParam, LPNMHDR lParam, BOOL& bHandled);
 		void DrawItem(LPDRAWITEMSTRUCT lpDrawItemStruct);
 		void MeasureItem(LPMEASUREITEMSTRUCT lpMeasureItemStruct);
 
 	private:
 
-		CListViewCtrl m_list;
-		psdl::tunnel* m_atb;
+		CListViewCtrl  m_list;
+		CNumUpDownCtrl m_ud1, m_ud2;
+		float fHeight1, fHeight2;
+
+		psdl::tunnel*  m_atb;
 };
 
 #endif

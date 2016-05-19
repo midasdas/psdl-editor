@@ -25,19 +25,85 @@ LRESULT CRoadView::OnInitDialog(UINT, WPARAM, LPARAM, BOOL&)
 
 	DlgResize_Init(false, false, WS_CHILD | WS_VISIBLE);
 
-	return FALSE;
+	return 0;
 }
 
 LRESULT CTextureView::OnInitDialog(UINT, WPARAM, LPARAM, BOOL&)
 {
+	SetRedraw(FALSE);
+
 	unsigned short nIndex = static_cast<psdl::texture*>(m_pAtb)->i_texture;
 
-	m_textureName.Format("0x%x: %s", nIndex, m_pDoc->get_texname(nIndex).c_str());
+//	m_textureName.Format("0x%x: %s", nIndex, m_pDoc->get_texname(nIndex).c_str());
+	m_textureName = IndexString(nIndex) + ": " + m_pDoc->get_texname(nIndex).c_str();
 
 	DoDataExchange(FALSE);
 	DlgResize_Init(false, false, WS_CHILD | WS_VISIBLE);
 
-	return FALSE;
+	CWindow wnd;
+	wnd.Attach(GetDlgItem(IDC_PLACEHOLDER));
+
+	if (nIndex < CMainFrame::m_psdlDoc.GetView()->m_textures.size())
+	{
+		wnd.ModifyStyle(0, SS_OWNERDRAW);
+	}
+	else
+	{
+		HFONT hFont = wnd.GetFont();
+		LOGFONT lf;
+		GetObject(hFont, sizeof(LOGFONT), &lf);
+		lf.lfItalic = TRUE;
+		wnd.SetFont(CreateFontIndirect(&lf));
+	}
+
+	SetRedraw();
+	return 0;
+}
+
+void CTextureView::OnDrawItem(UINT, LPDRAWITEMSTRUCT lpdis)
+{
+	unsigned short nIndex = static_cast<psdl::texture*>(m_pAtb)->i_texture;
+
+	GLint nWidth = 0, nHeight = 0;
+
+	wglMakeCurrent(CMainFrame::GetView()->GetDC(), CMainFrame::GetView()->GetRC());
+
+	GLuint iTexName = CMainFrame::m_psdlDoc.GetView()->m_textures[nIndex];
+	glBindTexture(GL_TEXTURE_2D, iTexName);
+
+	glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH,  &nWidth);
+	glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &nHeight);
+
+	GLbyte *pBytes = new GLbyte[nWidth * nHeight * 3];
+
+	glGetTexImage(GL_TEXTURE_2D, 0, GL_BGR_EXT /* == 24 bits */, GL_UNSIGNED_BYTE, &pBytes[0]);
+
+	wglMakeCurrent(NULL, NULL);
+
+	BITMAPINFOHEADER bmih;
+	bmih.biSize = sizeof(BITMAPINFOHEADER);
+	bmih.biWidth = nWidth;
+	bmih.biHeight = nHeight;
+	bmih.biPlanes = 1;
+	bmih.biBitCount = 24;
+	bmih.biCompression = BI_RGB;
+	bmih.biSizeImage = 0;
+//	bmih.biXPelsPerMeter = ;
+//	bmih.biYPelsPerMeter = ;
+	bmih.biClrUsed = 0;
+	bmih.biClrImportant = 0;
+
+	BITMAPINFO bmi;
+	bmi.bmiHeader = bmih;
+
+	HBITMAP hBmp = CreateDIBitmap(lpdis->hDC, &bmih, CBM_INIT, pBytes, &bmi, DIB_RGB_COLORS);
+	delete[] pBytes;
+
+	HDC hdcMem = CreateCompatibleDC(lpdis->hDC);
+	SelectObject(hdcMem, hBmp);
+	BitBlt(lpdis->hDC, 0, 0, nWidth, nHeight, hdcMem, 0, 0, SRCCOPY);
+	DeleteObject(hBmp);
+	DeleteDC(hdcMem);
 }
 
 LRESULT CTunnelView::OnInitDialog(UINT, WPARAM, LPARAM, BOOL&)
@@ -59,6 +125,18 @@ LRESULT CTunnelView::OnInitDialog(UINT, WPARAM, LPARAM, BOOL&)
 	SetState(IDC_CURVEDWALL,	m_atb->get_flag(BIT_CURVEDSIDES));
 	SetState(IDC_FLAT,			m_atb->get_flag(BIT_CULLED));
 	SetState(IDC_CURVED,		m_atb->get_flag(BIT_CURVEDCEILING));
+
+	m_ud1.Create(m_hWnd, rcDefault, NULL, WS_CHILD | WS_VISIBLE | UDS_ALIGNRIGHT | UDS_ARROWKEYS, 0, IDC_SPIN1);
+	m_ud1.SetBuddy(GetDlgItem(IDC_HEIGHT1));
+	m_ud1.SetRange(SHRT_MIN, SHRT_MAX);
+	m_ud1.SetIncrement(1);
+	m_ud1.SetValueForBuddy(m_atb->height1);
+
+	m_ud2.Create(m_hWnd, rcDefault, NULL, WS_CHILD | WS_VISIBLE | UDS_ALIGNRIGHT | UDS_ARROWKEYS, 0, IDC_SPIN2);
+	m_ud2.SetBuddy(GetDlgItem(IDC_HEIGHT2));
+	m_ud2.SetRange(SHRT_MIN, SHRT_MAX);
+	m_ud2.SetIncrement(1);
+	m_ud2.SetValueForBuddy(m_atb->height2);
 
 	CWindow wnd(m_hWnd);
 	RECT rc;
@@ -106,7 +184,7 @@ LRESULT CTunnelView::OnInitDialog(UINT, WPARAM, LPARAM, BOOL&)
 	SetRedraw();
 
 	DlgResize_Init(false, true, WS_CHILD | WS_VISIBLE);
-	return FALSE;
+	return 0;
 }
 
 LRESULT CTunnelView::OnCheckClicked(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL&)
@@ -154,7 +232,33 @@ LRESULT CTunnelView::OnClick(int, LPNMHDR lpnmh, BOOL&)
 		}
 	}
 
-	return FALSE;
+	return 0;
+}
+
+LRESULT CTunnelView::OnEditChange(UINT, int idCtrl, HWND)
+{
+//	MessageBox("lol");
+//	DoDataExchange(TRUE);
+
+	if (idCtrl == IDC_SPIN1)
+		m_atb->height1 = m_ud1.GetPos();
+	else
+		m_atb->height2 = m_ud2.GetPos();
+
+	CMainFrame::GetView()->Invalidate();
+	SetMsgHandled(FALSE);
+	return 0;
+}
+
+LRESULT CTunnelView::OnDeltaPos(int idCtrl, LPNMHDR lpnmh, BOOL& bHandled)
+{
+	if (idCtrl == IDC_SPIN1)
+		m_atb->height1 = m_ud1.GetPos();
+	else
+		m_atb->height2 = m_ud2.GetPos();
+
+//	bHandled = FALSE;
+	return 0;
 }
 
 void CTunnelView::DrawItem(LPDRAWITEMSTRUCT lpdis)
