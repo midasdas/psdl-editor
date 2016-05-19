@@ -3,6 +3,7 @@
 
 #include "io_error.h"
 #include "thread.h"
+#include "dialogs.h"
 #include <string>
 
 template <class TDoc>
@@ -66,49 +67,38 @@ class DocTemplateBase
 {
 public:
 
+	struct ThreadParams
+	{
+		DocTemplateBase* pDocTmpl;
+		std::string strFileName;
+		void** pDoc;
+
+		ThreadParams(DocTemplateBase* pDocTmpl, std::string strFileName, void** pDoc = NULL) :
+			pDocTmpl(pDocTmpl), strFileName(strFileName), pDoc(pDoc)
+		{}
+	};
+
+	virtual std::string GetExtensionString(void) const = 0;
 	virtual std::string GetFileName(bool bFull = false) = 0;
 	virtual std::string GetPathName(void) = 0;
-	virtual error::code OpenDocument(std::string strFileName, notify_func callbackFunc = default_callback) = 0;
+	virtual error::code OpenDocument(std::string strFileName, ProgressMonitor* pMonitor) = 0;
 	virtual error::code SaveDocument(std::string strFileName = _T("")) = 0;
-	virtual error::code LoadDocument(void*& pDoc, std::string strFileName, notify_func callbackFunc = default_callback) = 0;
+	virtual error::code LoadDocument(void** pDoc, std::string strFileName, ProgressMonitor* pMonitor) = 0;
 	virtual void SetDocument(void*& pDoc, std::string strFileName) = 0;
 	virtual bool FileExists(void) = 0;
 	virtual bool IsModified(void) = 0;
 	virtual void UpdateViews(void) = 0;
 
-	static unsigned _stdcall _LoadDocumentThread(void* pThreadData)
+	static unsigned _stdcall LoadDocumentThread(void* pArgs)
 	{
-		ThreadData* pData = static_cast<ThreadData*>(pThreadData);
+		ProgressMonitor* pMonitor = static_cast<ProgressMonitor*>(pArgs);
+		ThreadParams* pParams = (ThreadParams*) static_cast<CProgressDlg2*>(pMonitor)->GetArgs(); // Bad
 
-		if (IOParams* pPio = static_cast<IOParams*>(pData->pParams))
-		{
-			return pPio->pDocTmpl->LoadDocument(pPio->pDoc, pPio->strFileName, pData->callbackFunc);
-		}
-
-		return error::failure;
+		return pParams->pDocTmpl->LoadDocument(pParams->pDoc, pParams->strFileName, pMonitor);
 	}
 
-	static unsigned _stdcall _OpenDocumentThread(void* pThreadData)
-	{
-		ThreadData* pData = static_cast<ThreadData*>(pThreadData);
-
-		if (IOParams* pPio = static_cast<IOParams*>(pData->pParams))
-		{
-			return pPio->pDocTmpl->OpenDocument(pPio->strFileName, pData->callbackFunc);
-		}
-
-		return error::failure;
-	}
-
-	static unsigned _OpenDocument(void* pParams)
-	{
-		if (IOParams* pPio = reinterpret_cast<IOParams*>(pParams))
-		{
-			return pPio->pDocTmpl->OpenDocument(pPio->strFileName, pPio->callbackFunc);
-		}
-
-		return error::failure;
-	}
+private:
+	std::string m_strOpenFileName;
 };
 
 template <class TDoc, class TView>
@@ -128,6 +118,23 @@ public:
 	{
 		if (m_pDoc)  delete m_pDoc;
 		if (m_pView) delete m_pView;
+	}
+
+	virtual std::string GetExtensionString(void) const
+	{
+		return _T("");
+	}
+
+	std::string GetBaseName(void)
+	{
+		std::string strFileName = GetFileName();
+
+		size_t pos = strFileName.rfind(_T('.'));
+		
+		if (pos != strFileName.npos)
+			return strFileName.substr(0, pos);
+
+		return strFileName;
 	}
 
 	std::string GetFileName(bool bFull = false)
@@ -172,11 +179,11 @@ public:
 	//	UpdateViews();
 	}
 
-	virtual error::code OpenDocument(std::string strFileName, notify_func callbackFunc = default_callback)
+	virtual error::code OpenDocument(std::string strFileName, ProgressMonitor* pMonitor)
 	{
 		TDoc* pDoc = new TDoc();
 
-		error::code code = pDoc->read_file(strFileName.c_str(), callbackFunc);
+		error::code code = pDoc->read_file(strFileName.c_str(), pMonitor);
 
 		if (code & error::ok)
 		{
@@ -195,24 +202,21 @@ public:
 			delete pDoc;
 		}
 
-		callbackFunc(_T(""), 100);
-
 		return code;
 	}
 
-	virtual error::code LoadDocument(void*& pDoc, std::string strFileName, notify_func callbackFunc = default_callback)
+	virtual error::code LoadDocument(void** pDoc, std::string strFileName, ProgressMonitor* pMonitor)
 	{
-		pDoc = new TDoc();
-
-		error::code code = static_cast<TDoc*>(pDoc)->read_file(strFileName.c_str(), callbackFunc);
-
-		callbackFunc(_T(""), 100);
-
+		*pDoc = new TDoc();
+		error::code code = static_cast<TDoc*>(*pDoc)->read_file(strFileName.c_str(), pMonitor);
+		pMonitor->done();
 		return code;
 	}
 
 	void SetDocument(void*& pDoc, std::string strFileName)
 	{
+		if (m_pDoc == pDoc) return;
+
 		if (m_pDoc) delete m_pDoc;
 
 		m_pDoc        = static_cast<TDoc*>(pDoc);

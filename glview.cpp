@@ -1,7 +1,8 @@
 #include "stdafx.h"
 #include "psdl-editor.h"
-#include "options.h"
+#include "config.h"
 #include "glview.h"
+#include "mainfrm.h"
 
 #include "tools.h"
 
@@ -17,7 +18,8 @@ void COpenGLView::SetupRC(void)
 	glEnable(GL_CULL_FACE);
 	glEnable(GL_DEPTH_TEST);
 
-	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
+//	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
+	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE); // Allows coloring of textures
 
 	wglMakeCurrent(NULL, NULL);
 }
@@ -57,7 +59,7 @@ LRESULT COpenGLView::OnPaint(UINT, WPARAM, LPARAM, BOOL&)
 	wglMakeCurrent(m_hDC, m_hRC);
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glPolygonMode(GL_FRONT, g_options.display.bWireframe ? GL_LINE : GL_FILL);
+	glPolygonMode(GL_FRONT, config.display.bWireframe ? GL_LINE : GL_FILL);
 
 	glPushMatrix();
 		glMatrixMode(GL_PROJECTION);
@@ -77,11 +79,9 @@ LRESULT COpenGLView::OnPaint(UINT, WPARAM, LPARAM, BOOL&)
 
 		glTranslatef(xPos, yPos, zPos);
 
-		glColor3f(1.f, 1.f, 1.f);
-
 		::SendMessage(GetParent(), WM_PAINT_DESCENDANTS, (WPARAM) m_hDC, (LPARAM) m_hRC);
-
-		glPopMatrix();
+	//	CMainFrame::PaintDescendants();
+	glPopMatrix();
 
 	glViewport(0, 0, nWidth / 6, nHeight / 6);
 
@@ -205,7 +205,13 @@ LRESULT COpenGLView::OnMouseMove(UINT, WPARAM wParam, LPARAM lParam, BOOL&)
 
 LRESULT COpenGLView::OnMouseWheel(UINT, WPARAM wParam, LPARAM, BOOL&)
 {
-	fZoom *= 1 + short(HIWORD(wParam)) / 1200.f;
+	short delta = short(HIWORD(wParam));
+
+	if (LOWORD(wParam) & MK_CONTROL)
+		yPos += delta / 24.0f;
+	else
+		fZoom *= 1 + short(HIWORD(wParam)) / 1200.f;
+
 	Invalidate(TRUE);
 	return 0;
 }

@@ -3,7 +3,7 @@
 
 #define IDAPPLY 3
 
-#define IDD_OPEN_EXT		105
+//#define IDD_OPEN_EXT		105
 #define IDC_OPEN_IN			50
 #define IDC_PROGRESS		80
 
@@ -40,6 +40,7 @@
 #define ID_FILE_OPENCONTAININGFOLDER		1116
 
 #define ID_EDIT_TRANSFORM					1117
+#define	ID_EDIT_REVERSE						1118
 
 #define ID_WINDOWS_CITYBLOCKS				1201
 #define ID_WINDOWS_PERIMETER				1202
@@ -52,8 +53,16 @@
 #define ID_WINDOWS_BAI_CULLING				1209
 
 #define ID_VIEW_RESET_CAMERA				1210
-#define ID_VIEW_GRID						1211
-#define ID_VIEW_WIREFRAME					1212
+#define ID_VIEW_AUTO_CAMERA					1211
+#define ID_VIEW_GRID						1212
+#define ID_VIEW_WIREFRAME					1213
+#define ID_VIEW_TEST_PVS					1214
+#define ID_VIEW_TEST_AI_CULLING				1215
+#define ID_VIEW_RENDER_PSDL					1216
+#define ID_VIEW_RENDER_BAI					1217
+#define ID_VIEW_HIDE_ALL					1218
+#define ID_VIEW_NUMERAL_HEX					1219
+#define ID_VIEW_NUMERAL_DEC					1220
 
 #define ID_VIEW_ROADS						1221
 #define ID_VIEW_SIDEWALKSTRIPS				1222
@@ -88,19 +97,39 @@
 #define ID_INSERT_DUPLICATE_VERTICES		1308
 #define ID_INSERT_GENERATE_PERIMETER		1309
 
+#define ID_INSERT_ROADSTRIP					1320
+#define ID_INSERT_SIDEWALKSTRIP				1321
+#define ID_INSERT_RECTANGLESTRIP			1322
+#define ID_INSERT_SLIVER					1323
+#define ID_INSERT_CROSSWALK					1324
+#define ID_INSERT_ROADTRIANGLEFAN			1325
+#define ID_INSERT_TRIANGLEFAN				1326
+#define ID_INSERT_DIVIDEDROADSTRIP			1327
+#define ID_INSERT_TUNNELJUNCTION			1328
+#define ID_INSERT_TUNNEL					1329
+#define ID_INSERT_TEXTUREREF				1330
+#define ID_INSERT_FACADE					1331
+#define ID_INSERT_FACADEBOUND				1332
+#define ID_INSERT_ROOFTRIANGLEFAN			1333
+
 #define ID_MACRO_GENERATE					1401
 #define ID_MACRO_GENERATE_ALL				1402
 
-#define ID_TOOLS_MM2						1501
-#define ID_TOOLS_GENERATE_PERIMETERS		1502
-#define ID_TOOLS_OPTIMIZE					1503
-#define ID_TOOLS_OPTIONS					1504
-#define ID_TOOLS_SCREENSHOT					1505
+#define ID_TOOLS_OPTIONS					1501
+#define ID_TOOLS_MM2						1502
+#define ID_TOOLS_SDLVIEW					1503
+#define ID_TOOLS_GENERATE_PERIMETERS		1504
+#define ID_TOOLS_OPTIMIZE					1505
+#define ID_TOOLS_GENERATE_BAI				1506
+#define ID_TOOLS_GENERATE_AI_ROUTES			1507
+#define ID_TOOLS_GENERATE_AI_CULLING		1508
+#define ID_TOOLS_SCREENSHOT					1509
 
 #define ID_OPTIONS_TOOLS					2101
 
 #define IDS_SAVE_CHANGES		9001
 #define IDS_INVALID_FILE		9002
+#define IDS_INVALID_FORMAT		9003
 #define IDS_UNDO_COMMAND		9101
 #define IDS_REDO_COMMAND		9102
 
@@ -120,6 +149,7 @@
 	#define IDC_SELECT			1106
 
 #define IDD_PERIMETERS		102
+	#define IDC_EXTEND			1201
 
 #define IDD_OPTIMIZE		103
 	#define IDC_TEXTURE_REFS	1300
@@ -134,6 +164,9 @@
 	#define IDC_Y_STATIC		1406
 	#define IDC_Z_STATIC		1407
 	#define IDC_ANGLE_STATIC	1408
+
+#define IDD_GENERATE_BAI	105
+	#define IDC_PATH				1501
 
 #define IDD_OPTIONS			500
 	#define IDD_OPTIONS_GENERAL		501
@@ -188,17 +221,35 @@
 
 #define IDC_FRAME1                      1001
 #define IDC_EDIT1                       1002
-#define IDC_CHECK1                      1003
-#define IDC_RADIO1                      1004
-#define IDC_LIST1                       1005
-#define IDC_STATIC_A                    1006
-#define IDC_GROUPBOX_A                  1007
-#define IDC_TREE						1008
-#define IDC_PLACEHOLDER					1009
-#define IDC_BROWSE						1010
-#define IDC_SPIN1						1011
-#define IDC_SPIN2						1012
-#define IDC_COMBO						1013		
+#define IDC_EDIT2                       1003
+#define IDC_EDIT3                       1004
+#define IDC_EDIT4                       1005
+#define IDC_CHECK1                      1006
+#define IDC_CHECK2                      1007
+#define IDC_CHECK3                      1008
+#define IDC_CHECK4                      1009
+#define IDC_RADIO1                      1010
+#define IDC_RADIO2                      1011
+#define IDC_RADIO3                      1012
+#define IDC_RADIO4                      1013
+#define IDC_LIST1                       1014
+#define IDC_STATIC_A                    1015
+#define IDC_GROUPBOX_A                  1016
+#define IDC_TREE						1017
+#define IDC_PLACEHOLDER					1018
+#define IDC_BROWSE1						1019
+#define IDC_BROWSE2						1020
+#define IDC_BROWSE3						1021
+#define IDC_BROWSE4						1022
+#define IDC_SPIN1						1023
+#define IDC_SPIN2						1024
+#define IDC_SPIN3						1025
+#define IDC_SPIN4						1026
+#define IDC_STATIC1						1027
+#define IDC_STATIC2						1028
+#define IDC_STATIC3						1029
+#define IDC_STATIC4						1030
+#define IDC_COMBO						1031
 
 #define IDC_INFO			2000
 #define IDC_BOX				2001

@@ -1,6 +1,8 @@
 #ifndef __STDAFX_H__
 #define __STDAFX_H__
 
+#define INVALID_FILE_ATTRIBUTES 0xFFFFFFFF
+
 #define VK_OEM_PLUS     107
 #define VK_OEM_MINUS    109
 #define WM_MOUSEWHEEL   0x020A

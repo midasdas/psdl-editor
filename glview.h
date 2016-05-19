@@ -44,6 +44,13 @@ public:
 		ResetCamera();
 	}
 
+	void MoveAxis(GLfloat fX, GLfloat fY, GLfloat fZ)
+	{
+		xPos = fX;
+		yPos = fY;
+		zPos = fZ;
+	}
+
 	void ResetCamera(void)
 	{
 		xPos = yPos = zPos = yRot = 0;

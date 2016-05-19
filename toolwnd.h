@@ -17,91 +17,6 @@ static inline unsigned char CalcLZeros(int nItems)
 	return nDigits;
 }
 
-class CToolWindow : public CWindowImpl<CToolWindow>
-{
-	public:
-		BEGIN_MSG_MAP(CToolWindow)
-			MESSAGE_HANDLER(WM_ERASEBKGND, OnEraseBkgnd)
-			REFLECT_NOTIFICATIONS()
-		END_MSG_MAP()
-
-		LRESULT OnEraseBkgnd(UINT, WPARAM wParam, LPARAM, BOOL&)
-		{
-			CRect rc;
-			GetClientRect(&rc);
-			FillRect((HDC) wParam, &rc, (HBRUSH) (COLOR_BTNFACE));
-			return 1;
-		}
-};
-
-class CPropertiesWindow : public CFrameWindowImpl<CPropertiesWindow>
-{
-public:
-
-	BEGIN_MSG_MAP(CPropertiesWindow)
-	//	MESSAGE_HANDLER(WM_CREATE, OnCreate)
-		CHAIN_MSG_MAP(CFrameWindowImpl<CPropertiesWindow>)
-	END_MSG_MAP()
-
-	CPropertiesWindow() : m_pDoc(NULL), m_pAtb(NULL), m_pView(NULL) {}
-
-	void SetView(int nID)
-	{
-		if (m_pView && m_pView->IsWindow())
-		{
-			m_pView->DoDataExchange(TRUE);
-			m_pView->ShowWindow(SW_HIDE);
-			m_pView->DestroyWindow();
-		}
-
-		switch (nID)
-		{
-			case ATB_ROAD:
-			case ATB_DIVIDEDROAD: m_pView = new CRoadView(m_pAtb); break;
-			case ATB_TUNNEL:      m_pView = new CTunnelView(m_pAtb); break;
-			case ATB_TEXTURE:     m_pView = new CTextureView(m_pAtb, m_pDoc); break;
-			case -1:              m_pView = new CAtbView<IDD_ATB_NONE>; break;
-			default:              m_pView = new CAtbView<IDD_ATB_UNKNOWN>;
-		}
-
-		m_hWndClient = m_pView->Create(m_hWnd);
-		m_pView->DoDataExchange();
-		UpdateLayout();
-	}
-
-	void SetPSDL(psdl* pDoc)
-	{
-		m_pDoc = pDoc;
-	}
-
-	void SetAttribute(psdl::attribute* pAtb)
-	{
-		m_pAtb = pAtb;
-
-		if (m_pDoc && m_pAtb)
-			SetView(m_pAtb->type);
-		else
-			SetView(-1);
-	}
-
-	psdl::attribute* GetAttribute(void)
-	{
-		return m_pAtb;
-	}
-
-	LRESULT OnCreate(UINT, WPARAM, LPARAM lParam, BOOL&)
-	{
-		SetView(-1);
-		return 0;
-	}
-
-private:
-
-	psdl* m_pDoc;
-	psdl::attribute* m_pAtb;
-	CPropView* m_pView;
-};
-
 class CAttributesWindow : public CWindowImpl<CAttributesWindow>
 {
 public:
@@ -168,6 +83,139 @@ private:
 
 public:
 	CPDListViewCtrl m_list;
+};
+
+class CBlocksWindow : public CWindowImpl<CBlocksWindow>
+{
+public:
+
+	CBlocksWindow() : m_pDoc(NULL), m_nDigits(0) {}
+
+private:
+
+	BEGIN_MSG_MAP_EX(CBlocksWindow)
+		MESSAGE_HANDLER(WM_CREATE, OnCreate)
+		MESSAGE_HANDLER(WM_SIZE, OnSize)
+		MSG_WM_CONTEXTMENU(OnContextMenu)
+		MSG_WM_DRAWITEM(OnDrawItem)
+		MSG_WM_MEASUREITEM(OnMeasureItem)
+		NOTIFY_HANDLER(IDC_LIST, LVN_ITEMCHANGED, OnItemChanged)
+		NOTIFY_HANDLER(IDC_LIST, NM_CLICK, OnClick)
+		REFLECT_NOTIFICATIONS()
+	END_MSG_MAP()
+
+	void OnDrawItem(UINT, LPDRAWITEMSTRUCT lpdis);
+	void OnMeasureItem(UINT, LPMEASUREITEMSTRUCT lpmis);
+	LRESULT OnItemChanged(int, LPNMHDR, BOOL&);
+	LRESULT OnClick(int, LPNMHDR lpnmh, BOOL&);
+
+	void OnContextMenu(CWindow wnd, CPoint pt);
+
+	void InsertItem(int iPos = -1)
+	{
+		if (iPos < 0) iPos = m_list.GetItemCount();
+		m_list.InsertItem(iPos, _T(""));
+	//	m_nDigits = CalcLZeros(m_list.GetItemCount());
+		m_list.Invalidate();
+		AdjustColumns();
+	}
+
+	std::vector<psdl::block*> GetSelected(std::vector<unsigned long>* outBlockIDs = NULL)
+	{
+		std::vector<psdl::block*> blocks;
+		int i = -1;
+
+		while ((i = m_list.GetNextItem(i, LVNI_SELECTED)) >= 0)
+		{
+			blocks.push_back(m_pDoc->get_block(i));
+		}
+
+		if (outBlockIDs != NULL)
+		{
+			outBlockIDs->reserve(blocks.size());
+			i = -1;
+			while ((i = m_list.GetNextItem(i, LVNI_SELECTED)) >= 0)
+			{
+				outBlockIDs->push_back(i);
+			}
+		}
+
+		return blocks;
+	}
+
+	void SetPSDL(psdl* pDoc)
+	{
+		m_pDoc = pDoc;
+
+		m_list.SetRedraw(FALSE);
+		m_list.DeleteAllItems();
+
+		for (int i = 0; i < pDoc->num_blocks(); ++i)
+			m_list.InsertItem(i, _T(""));
+
+	//	m_nDigits = CalcLZeros(i);
+
+		m_list.SetRedraw();
+		AdjustColumns();
+	}
+
+	LRESULT OnCreate(UINT, WPARAM, LPARAM lParam, BOOL&)
+	{
+		m_list.Create(m_hWnd, rcDefault, NULL, WS_CHILD | WS_VISIBLE |
+			LVS_OWNERDRAWFIXED | LVS_REPORT | LVS_SHOWSELALWAYS | LVS_NOSORTHEADER,
+			WS_EX_STATICEDGE, IDC_LIST);
+
+		m_list.SetExtendedListViewStyle(LVS_EX_FULLROWSELECT);
+
+		m_list.InsertColumn(0, _T("#"));
+		m_list.InsertColumn(1, _T(""));
+		m_list.InsertColumn(2, _T("Type"));
+		m_list.InsertColumn(3, _T("Proprule"));
+
+		m_list.SetColumnWidth(0, 30);
+		m_list.SetColumnWidth(1, 35);// 30
+		m_list.SetColumnWidth(2, 83);// 78
+
+		CBitmap bm;
+		bm.LoadBitmap(IDB_FLASH4);
+
+		m_ImageList.Create(15, 13,  ILC_COLOR8 | ILC_MASK, 1, 1);
+		m_ImageList.SetBkColor(CLR_NONE);
+		m_ImageList.Add(bm, RGB(255, 0, 255));
+
+		m_headerCtrl.SubclassWindow(m_list.GetHeader());
+		m_headerCtrl.SetImageList((HIMAGELIST) m_ImageList);
+
+		HDITEM hdi;
+		hdi.mask   = HDI_FORMAT;
+		hdi.fmt    = HDF_OWNERDRAW;
+
+	//	m_headerCtrl.SetItem(1, &hdi);
+	//	m_headerCtrl.Invalidate();
+
+		return FALSE;
+	}
+
+	void AdjustColumns(void)
+	{
+		RECT rc;
+		m_list.GetClientRect(&rc);
+		m_list.SetColumnWidth(3, rc.right - 150);
+	}
+
+	LRESULT OnSize(UINT, WPARAM, LPARAM lParam, BOOL&)
+	{
+		m_list.SetWindowPos(NULL, 0, 0, LOWORD(lParam), HIWORD(lParam), SWP_NOMOVE);
+		AdjustColumns();
+		return FALSE;
+	}
+
+	psdl* m_pDoc;
+	unsigned char m_nDigits;
+	CImageList m_ImageList;
+
+	CLayersCtrl m_list;
+	CLayersHeaderCtrl m_headerCtrl;
 };
 
 class CPerimeterWindow : public CWindowImpl<CPerimeterWindow>
@@ -238,119 +286,74 @@ private:
 	psdl::block* m_pBlock;
 };
 
-class CBlocksWindow : public CWindowImpl<CBlocksWindow>
+class CPropertiesWindow : public CFrameWindowImpl<CPropertiesWindow>
 {
 public:
 
-	CBlocksWindow() : m_pDoc(NULL), m_nDigits(0) {}
-
-private:
-
-	BEGIN_MSG_MAP_EX(CBlocksWindow)
-		MESSAGE_HANDLER(WM_CREATE, OnCreate)
-		MESSAGE_HANDLER(WM_SIZE, OnSize)
-		MSG_WM_CONTEXTMENU(OnContextMenu)
-		MSG_WM_DRAWITEM(OnDrawItem)
-		MSG_WM_MEASUREITEM(OnMeasureItem)
-		NOTIFY_HANDLER(IDC_LIST, LVN_ITEMCHANGED, OnItemChanged)
-		NOTIFY_HANDLER(IDC_LIST, NM_CLICK, OnClick)
-		REFLECT_NOTIFICATIONS()
+	BEGIN_MSG_MAP(CPropertiesWindow)
+	//	MESSAGE_HANDLER(WM_CREATE, OnCreate)
+		CHAIN_MSG_MAP(CFrameWindowImpl<CPropertiesWindow>)
 	END_MSG_MAP()
 
-	void OnDrawItem(UINT, LPDRAWITEMSTRUCT lpdis);
-	void OnMeasureItem(UINT, LPMEASUREITEMSTRUCT lpmis);
-	LRESULT OnItemChanged(int, LPNMHDR, BOOL&);
-	LRESULT OnClick(int, LPNMHDR lpnmh, BOOL&);
+	CPropertiesWindow() : m_pDoc(NULL), m_pAtb(NULL), m_pView(NULL) {}
 
-	void OnContextMenu(CWindow wnd, CPoint pt);
-
-	void InsertItem(int iPos = -1)
+	void SetView(int nID)
 	{
-		if (iPos < 0) iPos = m_list.GetItemCount();
-		m_list.InsertItem(iPos, _T(""));
-	//	m_nDigits = CalcLZeros(m_list.GetItemCount());
-		m_list.Invalidate();
-		AdjustColumns();
-	}
+		if (m_pView && m_pView->IsWindow())
+		{
+			m_pView->DoDataExchange(TRUE);
+			m_pView->ShowWindow(SW_HIDE);
+			m_pView->DestroyWindow();
+		}
 
-	std::vector<psdl::block*> GetSelected(void)
-	{
-		std::vector<psdl::block*> blocks;
-		int i = -1;
+		switch (nID)
+		{
+			case ATB_ROAD:
+			case ATB_DIVIDEDROAD: m_pView = new CRoadView(m_pAtb); break;
+			case ATB_TUNNEL:      m_pView = new CTunnelView(m_pAtb); break;
+			case ATB_TEXTURE:     m_pView = new CTextureView(m_pAtb, m_pDoc); break;
+			case -1:              m_pView = new CAtbView<IDD_ATB_NONE>; break;
+			default:              m_pView = new CAtbView<IDD_ATB_UNKNOWN>;
+		}
 
-		while ((i = m_list.GetNextItem(i, LVNI_SELECTED)) >= 0)
-			blocks.push_back(m_pDoc->get_block(i));
-
-		return blocks;
+		m_hWndClient = m_pView->Create(m_hWnd);
+		m_pView->DoDataExchange();
+		UpdateLayout();
 	}
 
 	void SetPSDL(psdl* pDoc)
 	{
 		m_pDoc = pDoc;
+	}
 
-		m_list.SetRedraw(FALSE);
-		m_list.DeleteAllItems();
+	void SetAttribute(psdl::attribute* pAtb)
+	{
+		m_pAtb = pAtb;
 
-		for (int i = 0; i < pDoc->num_blocks(); ++i)
-			m_list.InsertItem(i, _T(""));
+		if (m_pDoc && m_pAtb)
+			SetView(m_pAtb->type);
+		else
+			SetView(-1);
+	}
 
-	//	m_nDigits = CalcLZeros(i);
-
-		m_list.SetRedraw();
-		AdjustColumns();
+	psdl::attribute* GetAttribute(void)
+	{
+		return m_pAtb;
 	}
 
 	LRESULT OnCreate(UINT, WPARAM, LPARAM lParam, BOOL&)
 	{
-		m_list.Create(m_hWnd, rcDefault, NULL, WS_CHILD | WS_VISIBLE |
-			LVS_OWNERDRAWFIXED | LVS_REPORT | LVS_SHOWSELALWAYS | LVS_NOSORTHEADER,
-			WS_EX_STATICEDGE, IDC_LIST);
-
-		m_list.SetExtendedListViewStyle(LVS_EX_FULLROWSELECT);
-
-		m_list.InsertColumn(0, _T("#"));
-		m_list.InsertColumn(1, _T(""));
-		m_list.InsertColumn(2, _T("Type"));
-		m_list.InsertColumn(3, _T("Proprule"));
-
-		m_list.SetColumnWidth(0, 30);
-		m_list.SetColumnWidth(1, 35);// 30
-		m_list.SetColumnWidth(2, 83);// 78
-
-		m_headerCtrl.SubclassWindow(m_list.GetHeader());
-
-		CBitmap bm;
-		bm.LoadBitmap(IDB_FLASH4);
-
-		m_ImageList.Create(15, 13,  ILC_COLOR8 | ILC_MASK, 1, 1);
-		m_ImageList.SetBkColor(CLR_NONE);
-		m_ImageList.Add(bm, RGB(255, 0, 255));
-
-		return FALSE;
+		SetView(-1);
+		return 0;
 	}
 
-	void AdjustColumns(void)
-	{
-		RECT rc;
-		m_list.GetClientRect(&rc);
-		m_list.SetColumnWidth(3, rc.right - 150);
-	}
-
-	LRESULT OnSize(UINT, WPARAM, LPARAM lParam, BOOL&)
-	{
-		m_list.SetWindowPos(NULL, 0, 0, LOWORD(lParam), HIWORD(lParam), SWP_NOMOVE);
-		AdjustColumns();
-		return FALSE;
-	}
+private:
 
 	psdl* m_pDoc;
-	unsigned char m_nDigits;
-	CImageList m_ImageList;
-
-	CLayersCtrl m_list;
-	CLayersHeaderCtrl m_headerCtrl;
+	psdl::attribute* m_pAtb;
+	CPropView* m_pView;
 };
-
+/*
 class CToolbox : public CFrameWindowImpl<CToolbox>
 {
 	public:
@@ -384,4 +387,21 @@ class CToolbox : public CFrameWindowImpl<CToolbox>
 		}
 };
 
+class CToolWindow : public CWindowImpl<CToolWindow>
+{
+	public:
+		BEGIN_MSG_MAP(CToolWindow)
+			MESSAGE_HANDLER(WM_ERASEBKGND, OnEraseBkgnd)
+			REFLECT_NOTIFICATIONS()
+		END_MSG_MAP()
+
+		LRESULT OnEraseBkgnd(UINT, WPARAM wParam, LPARAM, BOOL&)
+		{
+			CRect rc;
+			GetClientRect(&rc);
+			FillRect((HDC) wParam, &rc, (HBRUSH) (COLOR_BTNFACE));
+			return 1;
+		}
+};
+*/
 #endif

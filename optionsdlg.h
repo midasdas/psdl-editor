@@ -2,7 +2,11 @@
 #define __OPTIONSDLG_H__
 
 #include "resource.h"
-#include "options.h"
+#include "config.h"
+#include "mainfrm.h"
+#include <sstream>
+
+using namespace std;
 
 class COptionsDialog;
 
@@ -46,12 +50,12 @@ class COptionsPageGeneral :
 public:
 	enum { IDD = IDD_OPTIONS_GENERAL };
 
-	BEGIN_MSG_MAP(COptionsPageTools)
+	BEGIN_MSG_MAP(COptionsPageGeneral)
 		MESSAGE_HANDLER(WM_INITDIALOG, OnInitDialog)
 	END_MSG_MAP()
 
 	BEGIN_DDX_MAP(COptionsPageGeneral)
-		DDX_CHECK(IDC_VERTICES, g_options.general.test)
+		DDX_CHECK(IDC_VERTICES, config.general.test)
 	END_DDX_MAP()
 
 	LRESULT OnInitDialog(UINT, WPARAM, LPARAM, BOOL&)
@@ -77,9 +81,9 @@ public:
 		MESSAGE_HANDLER(WM_INITDIALOG, OnInitDialog)
 	END_MSG_MAP()
 
-	BEGIN_DDX_MAP(COptionsPageTools)
-		DDX_CHECK(IDC_USE_TEXTURES, g_options.display.bTextures)
-		DDX_CHECK(IDC_TEXTURE_FILTER, g_options.display.bTextureNearest)
+	BEGIN_DDX_MAP(COptionsPageRendering)
+		DDX_CHECK(IDC_USE_TEXTURES, config.display.bTextures)
+		DDX_CHECK(IDC_TEXTURE_FILTER, config.display.bTextureNearest)
 	END_DDX_MAP()
 
 	LRESULT OnInitDialog(UINT, WPARAM, LPARAM, BOOL&)
@@ -91,7 +95,7 @@ public:
 	void OnOk(void)
 	{
 		DoDataExchange(TRUE);
-	//	CMainFrame::GetView()->Invalidate();
+		CMainFrame::GetView()->Invalidate();
 	}
 };
 
@@ -104,32 +108,45 @@ public:
 
 	BEGIN_MSG_MAP(COptionsPageTools)
 		MESSAGE_HANDLER(WM_INITDIALOG, OnInitDialog)
-		COMMAND_ID_HANDLER(IDC_BROWSE, OnBrowse)
+		COMMAND_ID_HANDLER(IDC_BROWSE1, OnBrowse)
+		COMMAND_ID_HANDLER(IDC_BROWSE2, OnBrowse)
 	END_MSG_MAP()
 
 	BEGIN_DDX_MAP(COptionsPageTools)
-		DDX_TEXT(IDC_MM2PATH, m_strMM2Path)
+		DDX_TEXT(IDC_EDIT1, m_strMM2Path)
+		DDX_TEXT(IDC_EDIT2, m_strSDLViewPath)
 	END_DDX_MAP()
 
 	COptionsPageTools()
 	{
-		ExpandEnvironmentStrings(g_options.tools.strMM2Exe.c_str(), m_strMM2Path.GetBuffer(MAX_PATH), MAX_PATH);
+		ExpandEnvironmentStrings(config.tools.strMM2Exe.c_str(), m_strMM2Path.GetBuffer(MAX_PATH), MAX_PATH);
+		ExpandEnvironmentStrings(config.tools.strSDLViewExe.c_str(), m_strSDLViewPath.GetBuffer(MAX_PATH), MAX_PATH);
 	}
 
 	~COptionsPageTools()
 	{
-		g_options.tools.strMM2Exe = m_strMM2Path;
+		config.tools.strMM2Exe = m_strMM2Path;
+		config.tools.strSDLViewExe = m_strSDLViewPath;
 	}
 
-	LRESULT OnBrowse(WORD, WORD, HWND, BOOL&)
+	LRESULT OnBrowse(WORD, WORD wID, HWND, BOOL&)
 	{
-		DoDataExchange(TRUE, IDC_MM2PATH);
-		CFileDialog fDlg(TRUE, NULL, m_strMM2Path, OFN_HIDEREADONLY, _T("Executables\0*.exe\0All Files\0*.*\0"));
+		WORD wIDEdit = wID == IDC_BROWSE1 ? IDC_EDIT1 : IDC_EDIT2;
+
+		DoDataExchange(TRUE, wIDEdit);
+
+		CString strCurrent = wID == IDC_BROWSE1 ? m_strMM2Path : m_strSDLViewPath;
+
+		CFileDialog fDlg(TRUE, NULL, strCurrent, OFN_HIDEREADONLY, _T("Executables\0*.exe\0All Files\0*.*\0"));
 
 		if (IDOK == fDlg.DoModal())
 		{
-			m_strMM2Path = fDlg.m_szFileName;
-			DoDataExchange(FALSE, IDC_MM2PATH);
+			if (wID == IDC_BROWSE1)
+				m_strMM2Path = fDlg.m_szFileName;
+			else
+				m_strSDLViewPath = fDlg.m_szFileName;
+
+			DoDataExchange(FALSE, wIDEdit);
 		}
 		return 0;
 	}
@@ -146,6 +163,7 @@ public:
 	}
 
 	CString m_strMM2Path;
+	CString m_strSDLViewPath;
 };
 
 class COptionsPageDirectories :
@@ -159,14 +177,14 @@ public:
 		MESSAGE_HANDLER(WM_INITDIALOG, OnInitDialog)
 	END_MSG_MAP()
 
-	BEGIN_DDX_MAP(COptionsPageGeneral)
+	BEGIN_DDX_MAP(COptionsPageDirectories)
+		DDX_TEXT(IDC_EDIT1, m_strEdit1)
+		DDX_TEXT(IDC_EDIT2, m_strEdit2)
 	END_DDX_MAP()
 
 	LRESULT OnInitDialog(UINT, WPARAM, LPARAM, BOOL&)
 	{
-		DoDataExchange(FALSE);
-
-		const WORD upArrow[] = { 0xef, 0xc7, 0x83, 0x01 };
+/*		const WORD upArrow[] = { 0xef, 0xc7, 0x83, 0x01 };
 		const WORD dnArrow[] = { 0x01, 0x83, 0xc7, 0xef };
 
 		HBITMAP hBitmap;
@@ -175,15 +193,34 @@ public:
 		SendDlgItemMessage(IDC_UP, BM_SETIMAGE, IMAGE_BITMAP, (LPARAM) hBitmap);
 
 		hBitmap = CreateBitmap(7, 4, 1, 1, dnArrow);
-		SendDlgItemMessage(IDC_DOWN, BM_SETIMAGE, IMAGE_BITMAP, (LPARAM) hBitmap);
+		SendDlgItemMessage(IDC_DOWN, BM_SETIMAGE, IMAGE_BITMAP, (LPARAM) hBitmap);*/
 
+		ostringstream res;
+		copy(config.directories.texturePaths.begin(), config.directories.texturePaths.end(), ostream_iterator<string>(res, "\r\n"));
+
+		m_strEdit1 = (CString) res.str().c_str();
+
+		DoDataExchange(FALSE);
 		return 1;
 	}
 
 	void OnOk(void)
 	{
 		DoDataExchange(TRUE);
+
+		stringstream ss;
+		ss << (LPCTSTR) m_strEdit1;
+		string item;
+		vector<string> lines;
+		while (getline(ss, item))
+		{
+			lines.push_back(item);
+		}
+		config.directories.texturePaths.assign(lines.begin(), lines.end());
 	}
+
+private:
+	CString m_strEdit1, m_strEdit2;
 };
 
 struct PageEntry;
@@ -210,6 +247,7 @@ public:
 	BEGIN_MSG_MAP(COptionsDialog)
 		COMMAND_ID_HANDLER(IDOK, OnCloseCmd)
 		COMMAND_ID_HANDLER(IDCANCEL, OnCloseCmd)
+		COMMAND_ID_HANDLER(IDAPPLY, OnApply)
 		MESSAGE_HANDLER(WM_INITDIALOG, OnInitDialog)
 		NOTIFY_CODE_HANDLER(TVN_SELCHANGED, OnItemSelected)
 	END_MSG_MAP()
@@ -286,6 +324,17 @@ public:
 	void SetInitialPage(COptionsPage* pPage)
 	{
 		m_pCurrentPage = pPage;
+	}
+
+	LRESULT OnApply(WORD, WORD, HWND, BOOL&)
+	{
+		for (int i = 0; i < m_arrPages.GetSize(); i++)
+		{
+			if (m_arrPages[i]->pPage->IsCreated())
+				m_arrPages[i]->pPage->OnOk();
+		}
+
+		return 0;
 	}
 
 	LRESULT OnCloseCmd(WORD, WORD wID, HWND, BOOL&)

@@ -5,6 +5,8 @@
 #include "resource.h"
 #include <math.h>
 
+#define CN_VALUECHANGED WM_APP + 1
+
 class CCheckButton : public CWindowImpl<CCheckButton>
 {
 public:
@@ -185,6 +187,17 @@ class CLayersHeaderCtrl : public CWindowImpl<CLayersHeaderCtrl, CHeaderCtrl>
 		return TRUE;
 	}
 
+	int InsertItem(int nIndex, int nWidth, TCHAR *strText, bool bOwnerDraw = false)
+	{
+		HDITEM hdi;
+		hdi.mask  = HDI_FORMAT | HDI_TEXT | HDI_WIDTH;
+		hdi.fmt   = bOwnerDraw ? HDF_OWNERDRAW : 0;
+		hdi.pszText = strText;
+		hdi.cxy   = nWidth;
+
+		return CHeaderCtrl::InsertItem(nIndex, &hdi);
+	}
+
 //	CCheckButton m_btnShowAll, m_btnLockAll;
 	CImageList m_ImageList;
 
@@ -196,12 +209,12 @@ public:
 
 		if (bRet == TRUE)
 		{
-			CBitmap bm;
-			bm.LoadBitmap(IDB_FLASH4);
+		//	CBitmap bm;
+		//	bm.LoadBitmap(IDB_FLASH4);
 
-			m_ImageList.Create(15, 13,  ILC_COLOR8 | ILC_MASK, 1, 1);
-			m_ImageList.SetBkColor(CLR_NONE);
-			m_ImageList.Add(HBITMAP(bm), RGB(255, 0, 255));
+		//	m_ImageList.Create(15, 13,  ILC_COLOR8 | ILC_MASK, 1, 1);
+		//	m_ImageList.SetBkColor(CLR_NONE);
+		//	m_ImageList.Add(HBITMAP(bm), RGB(255, 0, 255));
 
 		/*	m_btnShowAll.SetStateImages(&m_ImageList, 0, 0);
 			m_btnLockAll.SetStateImages(&m_ImageList, 1, 1);
@@ -313,16 +326,32 @@ class CNumListViewCtrl : public CWindowImpl<CNumListViewCtrl, CListViewCtrl>
 	}
 };
 
-class CLayersCtrl : public CPDListViewCtrlBase<CLayersCtrl>
+class CLayersCtrl :
+	public CPDListViewCtrlBase<CLayersCtrl>,
+	public CCustomDraw<CLayersCtrl>
 {
 	BEGIN_MSG_MAP_EX(CLayersCtrl)
 		MSG_WM_NCPAINT(OnNCPaint)
 		MSG_WM_LBUTTONDOWN(OnLButtonDown)
 		MSG_WM_LBUTTONDBLCLK(OnLButtonDown)
+	//	NOTIFY_CODE_HANDLER(NM_CUSTOMDRAW, OnCustomDraw)
 	//	REFLECTED_NOTIFY_CODE_HANDLER(NM_RCLICK, OnRClick)
-		CHAIN_MSG_MAP(CPDListViewCtrlBase<CLayersCtrl>)
 	//	CHAIN_MSG_MAP(CMainFrame)
+	//	MSG_WM_DRAWITEM(OnDrawItem)
+		CHAIN_MSG_MAP(CCustomDraw<CLayersCtrl>)
+		CHAIN_MSG_MAP(CPDListViewCtrlBase<CLayersCtrl>)
 	END_MSG_MAP()
+
+	DWORD OnPrePaint(int /*idCtrl*/, LPNMCUSTOMDRAW lpnmcd)
+	{
+		return CDRF_NOTIFYITEMDRAW;
+	}
+
+	DWORD OnItemPrePaint(int /*idCtrl*/, LPNMCUSTOMDRAW lpnmcd)
+	{
+		FillRect(lpnmcd->hdc, &lpnmcd->rc, GetSysColorBrush(COLOR_BTNFACE));
+		return CDRF_SKIPDEFAULT;
+	}
 
 	LRESULT OnRClick(int, LPNMHDR lpnmh, BOOL&)
 	{
@@ -338,6 +367,24 @@ class CLayersCtrl : public CPDListViewCtrlBase<CLayersCtrl>
 	{
 		SetBkColor(RGB_AVERAGE(GetSysColor(COLOR_BTNFACE), GetSysColor(COLOR_BTNHILIGHT)));
 		SetMsgHandled(FALSE);
+		return FALSE;
+	}
+
+	LRESULT OnDrawItem(UINT, LPDRAWITEMSTRUCT lpdis)
+	{
+	//	MessageBox("Lol");
+
+	//	ExtTextOut(lpdis->hDC, rcItem.left, rcItem.top, ETO_CLIPPED | ETO_OPAQUE, &rcItem, _T("Jos"), 3, NULL);
+
+		if (lpdis->itemID == 1)
+		{
+			CHeaderCtrl headerCtrl = GetHeader();
+			CImageList imageList = headerCtrl.GetImageList();
+
+			int y = lpdis->rcItem.top + 2;
+			imageList.Draw(lpdis->hDC, 0, lpdis->rcItem.left,      y, ILD_NORMAL);
+			imageList.Draw(lpdis->hDC, 1, lpdis->rcItem.left + 15, y, ILD_NORMAL);
+		}
 		return FALSE;
 	}
 
@@ -450,6 +497,8 @@ public:
 		REFLECTED_NOTIFY_CODE_HANDLER(UDN_DELTAPOS, OnDeltaPos);
 	END_MSG_MAP()
 
+	CNumUpDownCtrl() : dIncrement(0.1) {}
+
 	void SetValueForBuddy(double val)
 	{
 		CEdit edit = GetBuddy();
@@ -459,6 +508,11 @@ public:
 		str.Format("%.2f", val);
 
 		edit.SetWindowText(str);
+	}
+
+	void SetIncrement(double increment)
+	{
+		dIncrement = increment;
 	}
 
 	double GetPos(void)
@@ -492,7 +546,11 @@ public:
 				pos = iMax;
 		}
 
-		SetValueForBuddy(pos + .1 * pUd->iDelta);
+		SetValueForBuddy(pos + dIncrement * pUd->iDelta);
+
+	// Temporarily
+		::SendMessage(GetParent(), WM_COMMAND, MAKEWPARAM(GetDlgCtrlID(), CN_VALUECHANGED), (LPARAM) m_hWnd);
+		
 		bHandled = FALSE;
 		return 0;
 	}
@@ -503,6 +561,8 @@ public:
 		SetValueForBuddy(GetPos());
 		return wnd;
 	}
+
+	double dIncrement;
 };
 
 class CMyListBox :

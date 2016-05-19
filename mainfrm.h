@@ -9,6 +9,7 @@
 #include "psdl_doc.h"
 #include "psdl_view.h"
 #include "cpvs_doc.h"
+#include "bai_doc.h"
 #include "toolwnd.h"
 #include "glview.h"
 #include "histmgr.h"
@@ -59,15 +60,20 @@ public:
 		UPDATE_ELEMENT(ID_WINDOWS_PERIMETER,         UPDUI_MENUPOPUP | UPDUI_TOOLBAR)
 		UPDATE_ELEMENT(ID_WINDOWS_ATTRIBUTES,        UPDUI_MENUPOPUP | UPDUI_TOOLBAR)
 		UPDATE_ELEMENT(ID_WINDOWS_PROPERTIES,        UPDUI_MENUPOPUP | UPDUI_TOOLBAR)
+		UPDATE_ELEMENT(ID_VIEW_AUTO_CAMERA,          UPDUI_MENUPOPUP)
 		UPDATE_ELEMENT(ID_VIEW_WIREFRAME,            UPDUI_MENUPOPUP)
+		UPDATE_ELEMENT(ID_VIEW_TEST_PVS,             UPDUI_MENUPOPUP)
+		UPDATE_ELEMENT(ID_VIEW_TEST_AI_CULLING,      UPDUI_MENUPOPUP)
+		UPDATE_ELEMENT(ID_VIEW_RENDER_PSDL,          UPDUI_MENUPOPUP)
+		UPDATE_ELEMENT(ID_VIEW_RENDER_BAI,           UPDUI_MENUPOPUP)
 		UPDATE_ELEMENT(ID_VIEW_STATUS_BAR,           UPDUI_MENUPOPUP)
+		UPDATE_ELEMENT(ID_VIEW_NUMERAL_HEX,          UPDUI_MENUPOPUP)
+		UPDATE_ELEMENT(ID_VIEW_NUMERAL_DEC,          UPDUI_MENUPOPUP)
 		UPDATE_ELEMENT(ID_MODE_PSDL,                 UPDUI_MENUPOPUP | UPDUI_TOOLBAR)
 		UPDATE_ELEMENT(ID_MODE_CPVS,                 UPDUI_MENUPOPUP | UPDUI_TOOLBAR)
 		UPDATE_ELEMENT(ID_MODE_INST,                 UPDUI_MENUPOPUP | UPDUI_TOOLBAR)
 		UPDATE_ELEMENT(ID_MODE_BAI,                  UPDUI_MENUPOPUP | UPDUI_TOOLBAR)
 		UPDATE_ELEMENT(ID_MODE_PATHSET,              UPDUI_MENUPOPUP | UPDUI_TOOLBAR)
-		UPDATE_ELEMENT(ID_INSERT_DUPLICATE_BLOCKS,   UPDUI_MENUPOPUP)
-		UPDATE_ELEMENT(ID_TOOLS_OPTIMIZE,            UPDUI_MENUPOPUP)
 		UPDATE_ELEMENT(ID_FILE_OPENCONTAININGFOLDER, UPDUI_MENUPOPUP)
 	END_UPDATE_UI_MAP()
 
@@ -88,21 +94,29 @@ public:
 		COMMAND_ID_HANDLER(ID_APP_EXIT,	OnFileExit)
 
 		COMMAND_ID_HANDLER(ID_EDIT_TRANSFORM, OnEditTransform)
+		COMMAND_ID_HANDLER(ID_EDIT_REVERSE, OnReverseVertices)
 
 		COMMAND_ID_HANDLER(ID_VIEW_RESET_CAMERA, OnViewResetCamera)
-		COMMAND_ID_HANDLER(ID_VIEW_WIREFRAME, OnViewWireframe)
+		COMMAND_RANGE_HANDLER(ID_VIEW_AUTO_CAMERA, ID_VIEW_RENDER_BAI, OnViewSettingChange)
+
+		COMMAND_ID_HANDLER(ID_VIEW_HIDE_ALL, OnViewHideAll)
+
 		COMMAND_ID_HANDLER(ID_VIEW_TOOLBAR, OnViewToolBar)
 		COMMAND_RANGE_HANDLER(ID_WINDOWS_CITYBLOCKS, ID_WINDOWS_BAI_CULLING, OnViewBar)
 		COMMAND_ID_HANDLER(ID_VIEW_STATUS_BAR, OnViewStatusBar)
+		COMMAND_RANGE_HANDLER(ID_VIEW_NUMERAL_HEX, ID_VIEW_NUMERAL_DEC, OnViewSetNumeral)
 		COMMAND_RANGE_HANDLER(ID_MODE_PSDL, ID_MODE_PATHSET, OnSetEditingMode)
 
 		COMMAND_ID_HANDLER(ID_INSERT_CITYBLOCK, OnInsertBlock)
 		COMMAND_ID_HANDLER(ID_INSERT_DUPLICATE_BLOCKS, OnDuplicateBlock)
 
+		COMMAND_RANGE_HANDLER(ID_INSERT_ROADSTRIP, ID_INSERT_ROOFTRIANGLEFAN, OnInsertAttribute)
 		COMMAND_ID_HANDLER(ID_TOOLS_GENERATE_PERIMETERS, OnGeneratePerimeters)
 		COMMAND_ID_HANDLER(ID_TOOLS_OPTIMIZE, OnOptimizePSDL)
 		COMMAND_ID_HANDLER(ID_TOOLS_MM2, OnLaunchMM2)
+		COMMAND_ID_HANDLER(ID_TOOLS_SDLVIEW, OnLoadSDLView)
 		COMMAND_ID_HANDLER(ID_TOOLS_OPTIONS, OnOptions)
+		COMMAND_ID_HANDLER(ID_TOOLS_GENERATE_BAI, OnGenerateBAI)
 
 		COMMAND_ID_HANDLER(ID_APP_ABOUT, OnAppAbout)
 
@@ -124,30 +138,38 @@ public:
 	LRESULT OnFileImport          (WORD, WORD, HWND, BOOL&);
 	LRESULT OnFileExport          (WORD, WORD, HWND, BOOL&);
 
-	LRESULT OnEditTransform(WORD, WORD, HWND, BOOL&);
+	LRESULT OnEditTransform  (WORD, WORD, HWND, BOOL&);
+	LRESULT OnReverseVertices(WORD, WORD, HWND, BOOL&);
 
 	LRESULT OnViewResetCamera(WORD, WORD, HWND, BOOL&);
-	LRESULT OnViewWireframe  (WORD, WORD, HWND, BOOL&);
+	LRESULT OnViewSettingChange(WORD, WORD, HWND, BOOL&);
 	LRESULT OnViewToolBar    (WORD, WORD, HWND, BOOL&);
 	LRESULT OnViewStatusBar  (WORD, WORD, HWND, BOOL&);
 	LRESULT OnViewBar        (WORD, WORD, HWND, BOOL&);
+	LRESULT OnViewHideAll    (WORD, WORD, HWND, BOOL&);
+	LRESULT OnViewSetNumeral (WORD, WORD, HWND, BOOL&);
 	LRESULT OnSetEditingMode (WORD, WORD, HWND, BOOL&);
 
 	LRESULT OnInsertBlock       (WORD, WORD, HWND, BOOL&);
 	LRESULT OnDuplicateBlock    (WORD, WORD, HWND, BOOL&);
+	LRESULT OnInsertAttribute   (WORD, WORD, HWND, BOOL&);
 	LRESULT OnGeneratePerimeters(WORD, WORD, HWND, BOOL&);
+	LRESULT OnGenerateBAI       (WORD, WORD, HWND, BOOL&);
 
 	LRESULT OnOptimizePSDL(WORD, WORD, HWND, BOOL&);
+	LRESULT OnLoadSDLView (WORD, WORD, HWND, BOOL&);
 	LRESULT OnLaunchMM2   (WORD, WORD, HWND, BOOL&);
 	LRESULT OnOptions     (WORD, WORD, HWND, BOOL&);
 
 	LRESULT OnAppAbout(WORD, WORD, HWND, BOOL&);
 
-	INT ShowOptions(INT iPageID);
+	int ShowOptions(int iPageID);
 
 	static COpenGLView* GetView(void) { return &this_ptr->m_view; }
+	static void PaintDescendants(void);
 	void UpdateCaption(void);
 	void SetEditingMode(int iMode);
+	void SetNumeral(WORD wID);
 	static void SelectBlock(long iIndex);
 	static void SelectAttribute(psdl::block* pBlock, long iIndex);
 	bool TransformEntities(TransformProps& sProps);
@@ -172,12 +194,18 @@ public:
 		return this_ptr->m_hWnd;
 	}
 
+	static CBlocksWindow* BlocksWindow(void)
+	{
+		return &this_ptr->m_wndBlocks;
+	}
+
+	static PSDLDocTemplate m_psdlDoc;
 private:
 
 	int m_iEditMode;
 
-	static PSDLDocTemplate m_psdlDoc;
 	static CPVSDocTemplate m_cpvsDoc;
+	static BAIDocTemplate  m_baiDoc;
 
 	COpenGLView m_view;
 	CFlatDockingWindow m_dock;

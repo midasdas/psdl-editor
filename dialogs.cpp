@@ -2,9 +2,6 @@
 #include "dialogs.h"
 #include "mainfrm.h"
 
-DuplicateProps g_duplicateProps;
-OptimizeProps  g_optimizeProps;
-
 CProgressDlg* CProgressDlg::pThis = NULL;
 
 LRESULT CTransformDlg::OnCloseCmd(WORD, WORD wID, HWND, BOOL&)

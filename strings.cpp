@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "strings.h"
 #include "resource.h"
+#include "config.h"
 
 CString AttributeString(psdl::attribute* pAtb)
 {
@@ -28,9 +29,19 @@ CString AttributeString(psdl::attribute* pAtb)
 	return sRet;
 }
 
-CString VertexString(psdl::vertex vert)
+CString VertexString(Vertex vert)
 {
 	CString sRet;
 	sRet.Format("%.03f, %.03f, %.03f", vert.x, vert.y, vert.z);
+	return sRet;
+}
+
+CString IndexString(unsigned int index)
+{
+	CString sRet;
+	if (config.display.eNumeral == ::Numeral::hex)
+		sRet.Format("%x", index);
+	else
+		sRet.Format("%d", index);
 	return sRet;
 }

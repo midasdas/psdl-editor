@@ -4,6 +4,7 @@
 #include "psdl.h"
 
 CString AttributeString(psdl::attribute *pAtb);
-CString VertexString(psdl::vertex v);
+CString VertexString(Vertex v);
+CString IndexString(unsigned int index);
 
 #endif

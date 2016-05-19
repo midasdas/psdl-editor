@@ -56,7 +56,8 @@ void CAttributesWindow::OnDrawItem(UINT, LPDRAWITEMSTRUCT lpdis)
 	rc.right--;
 
 	// Subitem 0
-	str.Format("%0*x", m_nDigits, lpdis->itemID);
+//	str.Format("%0*x", m_nDigits, lpdis->itemID);
+	str = IndexString(lpdis->itemID);
 	dc.ExtTextOut(rc.left + 3, y1, ETO_CLIPPED | ETO_OPAQUE, &rc, str, str.GetLength(), NULL);
 
 	rc.left = rc.right++;
@@ -190,7 +191,8 @@ void CPerimeterWindow::OnDrawItem(UINT, LPDRAWITEMSTRUCT lpdis)
 	// Subitem 0
 	m_list.GetSubItemRect(lpdis->itemID, 0, LVIR_BOUNDS, &rc);
 
-	str.Format("%0*x", m_nDigits, lpdis->itemID);
+//	str.Format("%0*x", m_nDigits, lpdis->itemID);
+	str = IndexString(lpdis->itemID);
 	dc.ExtTextOut(rc.left + 3, y1, ETO_CLIPPED | ETO_OPAQUE, &rc, str, str.GetLength(), NULL);
 
 	// Subitem 1
@@ -203,7 +205,7 @@ void CPerimeterWindow::OnDrawItem(UINT, LPDRAWITEMSTRUCT lpdis)
 	str.Format("%x, ", pp->vertex);
 
 	if (pp->block > 0)
-		strBlock.Format("%x", pp->block);
+		strBlock.Format("%x", pp->block - 1);
 
 	str += strBlock;
 
@@ -226,7 +228,9 @@ LRESULT CBlocksWindow::OnItemChanged(int, LPNMHDR lpnmh, BOOL&)
 {
 	NMLISTVIEW* nm = (NMLISTVIEW*) lpnmh;
 	if (nm->uNewState & LVIS_FOCUSED)
+	{
 		CMainFrame::SelectBlock(nm->iItem);
+	}
 	return 0;
 }
 
@@ -270,7 +274,7 @@ LRESULT CBlocksWindow::OnClick(int, LPNMHDR lpnmh, BOOL&)
 	return FALSE;
 }
 
-void CBlocksWindow::OnDrawItem(UINT, LPDRAWITEMSTRUCT lpdis)
+void CBlocksWindow::OnDrawItem(UINT idCtrl, LPDRAWITEMSTRUCT lpdis)
 {
 	CDCHandle dc(lpdis->hDC);
 
@@ -286,7 +290,8 @@ void CBlocksWindow::OnDrawItem(UINT, LPDRAWITEMSTRUCT lpdis)
 //	lpdis->rcItem.right += 2;
 
 	// Subitem 0
-	str.Format("%0*x", m_nDigits, lpdis->itemID);
+//	str.Format("%0*x", m_nDigits, lpdis->itemID);
+	str = IndexString(lpdis->itemID);
 	dc.ExtTextOut(lpdis->rcItem.left + 4, y1, ETO_CLIPPED | ETO_OPAQUE, &lpdis->rcItem, str, str.GetLength(), NULL);
 
 	RECT rc;

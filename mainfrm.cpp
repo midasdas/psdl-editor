@@ -1,18 +1,21 @@
 #include "stdafx.h"
 
 #include <algorithm>
+#include <map>
 #include <shellapi.h>
 #include <process.h>
 
 #include "mainfrm.h"
 #include "aboutdlg.h"
-#include "dialogs.h"
 #include "optionsdlg.h"
+
+#include "files.h"
 
 using namespace std;
 
 PSDLDocTemplate CMainFrame::m_psdlDoc;
 CPVSDocTemplate CMainFrame::m_cpvsDoc;
+BAIDocTemplate  CMainFrame::m_baiDoc;
 
 CMainFrame* CMainFrame::this_ptr = NULL;
 
@@ -22,7 +25,7 @@ const extMap CMainFrame::m_sExtMap[] =
 	{ "psd",     &m_psdlDoc, ID_MODE_PSDL    },
 	{ "cpvs",    &m_cpvsDoc, ID_MODE_CPVS    },
 	{ "inst",    NULL,       ID_MODE_INST    },
-	{ "bai",     NULL,       ID_MODE_BAI     },
+	{ "bai",     &m_baiDoc,  ID_MODE_BAI     },
 	{ "pathset", NULL,       ID_MODE_PATHSET }
 };
 
@@ -30,21 +33,18 @@ BOOL CMainFrame::PreTranslateMessage(MSG* pMsg)
 {
 	// Process tab key
 	if (m_wndProps.IsDialogMessage(pMsg))
-		return TRUE;
+		return 1;
 	if (m_dlgTransform && m_dlgTransform.IsDialogMessage(pMsg))
-		return TRUE;
+		return 1;
 
 	if (CFrameWindowImpl<CMainFrame>::PreTranslateMessage(pMsg))
-		return TRUE;
+		return 1;
 
-	return FALSE;
+	return 0;
 }
 
 BOOL CMainFrame::OnIdle()
 {
-	UIUpdateToolBar();
-	UIUpdateMenuBar(FALSE, TRUE);
-
 	UIEnable(ID_FILE_SAVE, CanSave());
 
 	UISetText(ID_EDIT_UNDO, GetUndoDescription());
@@ -53,9 +53,9 @@ BOOL CMainFrame::OnIdle()
 	UIEnable(ID_EDIT_REDO, CanRedo());
 	UIEnable(ID_EDIT_TRANSFORM, !m_dlgTransform);
 
-	UIEnable(ID_MODE_CPVS, FALSE);
+//	UIEnable(ID_MODE_CPVS, FALSE);
 	UIEnable(ID_MODE_INST, FALSE);
-	UIEnable(ID_MODE_BAI, FALSE);
+//	UIEnable(ID_MODE_BAI, FALSE);
 	UIEnable(ID_MODE_PATHSET, FALSE);
 
 	UIEnable(ID_FILE_OPENCONTAININGFOLDER, GetActiveDocument()->FileExists());
@@ -65,9 +65,10 @@ BOOL CMainFrame::OnIdle()
 	UISetCheck(ID_WINDOWS_ATTRIBUTES, ::IsWindowVisible(m_wndAttribs));
 	UISetCheck(ID_WINDOWS_PROPERTIES, ::IsWindowVisible(m_wndProps));
 
-	UISetCheck(ID_VIEW_WIREFRAME, g_options.display.bWireframe);
+	UIUpdateToolBar();
+	UIUpdateMenuBar(FALSE, TRUE);
 
-	return FALSE;
+	return 0;
 }
 
 LRESULT CMainFrame::OnDestroy(UINT, WPARAM, LPARAM, BOOL& bHandled)
@@ -77,11 +78,11 @@ LRESULT CMainFrame::OnDestroy(UINT, WPARAM, LPARAM, BOOL& bHandled)
 	for (int i = GetMaxEntries() - 1; i >= 0; i--)
 	{
 		if (GetFromList(ID_FILE_MRU_FIRST + i, strDocName))
-			g_options.files.aRecentFiles.push((LPCTSTR) strDocName);
+			config.files.aRecentFiles.push((LPCTSTR) strDocName);
 	}
 
-	bHandled = FALSE;
-	return FALSE;
+	bHandled = 0;
+	return 0;
 }
 
 LRESULT CMainFrame::OnCreate(UINT, WPARAM, LPARAM, BOOL&)
@@ -99,6 +100,21 @@ LRESULT CMainFrame::OnCreate(UINT, WPARAM, LPARAM, BOOL&)
 		0, 0, 0, 0
 	};
 
+	UISetCheck(ID_VIEW_TOOLBAR, 1);
+	UISetCheck(ID_VIEW_STATUS_BAR, 1);
+	UISetCheck(ID_WINDOWS_CITYBLOCKS, 1);
+	UISetCheck(ID_WINDOWS_PERIMETER, 1);
+	UISetCheck(ID_WINDOWS_ATTRIBUTES, 1);
+	UISetCheck(ID_WINDOWS_PROPERTIES, 1);
+	UISetCheck(ID_VIEW_AUTO_CAMERA,     config.display.bAutoCenter);
+	UISetCheck(ID_VIEW_WIREFRAME,       config.display.bWireframe);
+	UISetCheck(ID_VIEW_TEST_PVS,        config.display.bTestPVS);
+	UISetCheck(ID_VIEW_TEST_AI_CULLING, config.display.bTestAICulling);
+	UISetCheck(ID_VIEW_RENDER_PSDL,     config.display.bRenderPSDL);
+	UISetCheck(ID_VIEW_RENDER_BAI,      config.display.bRenderBAI);
+
+	SetNumeral(config.display.eNumeral == ::Numeral::hex ? ID_VIEW_NUMERAL_HEX : ID_VIEW_NUMERAL_DEC);
+
 	CreateSimpleToolBar();
 	CToolBarCtrl tool = m_hWndToolBar;
 	tool.SetStyle(tool.GetStyle() | TBSTYLE_FLAT);
@@ -108,17 +124,14 @@ LRESULT CMainFrame::OnCreate(UINT, WPARAM, LPARAM, BOOL&)
 	UIAddMenuBar(m_hWnd);
 	UIAddToolBar(m_hWndToolBar);
 
-	UISetCheck(ID_VIEW_TOOLBAR, 1);
-	UISetCheck(ID_VIEW_STATUS_BAR, 1);
-
 	SetMenuHandle(GetSubMenu(GetMenu(), 0));
-	SetMaxEntries(8);
+	SetMaxEntries(16);
 	SetMaxItemLength(20);
 
-	while (!g_options.files.aRecentFiles.empty())
+	while (!config.files.aRecentFiles.empty())
 	{
-		AddToList(g_options.files.aRecentFiles.top().c_str());
-		g_options.files.aRecentFiles.pop();
+		AddToList(config.files.aRecentFiles.top().c_str());
+		config.files.aRecentFiles.pop();
 	}
 
 	m_hWndClient = m_view.Create(m_hWnd, rcDefault, NULL, WS_CHILD | WS_VISIBLE, WS_EX_CLIENTEDGE);
@@ -153,7 +166,9 @@ LRESULT CMainFrame::OnCreate(UINT, WPARAM, LPARAM, BOOL&)
 	m_psdlDoc.NewDocument();
 	m_psdlDoc.UpdateViews();
 	m_cpvsDoc.NewDocument();
+	m_baiDoc.NewDocument();
 	m_cpvsDoc.SetPSDL(m_psdlDoc.GetDocument());
+	m_psdlDoc.GetView()->SetCPVS(m_cpvsDoc.GetDocument());
 
 	SetEditingMode(ID_MODE_PSDL);
 	UpdateCaption();
@@ -166,14 +181,17 @@ LRESULT CMainFrame::OnCreate(UINT, WPARAM, LPARAM, BOOL&)
 	return 0;
 }
 
+void CMainFrame::PaintDescendants(void)
+{
+	if (config.display.bRenderPSDL) this_ptr->m_psdlDoc.RenderScene();
+	if (config.display.bRenderBAI)  this_ptr->m_baiDoc.RenderScene();
+}
+
 LRESULT CMainFrame::OnPaintDescendants(UINT, WPARAM wParam, LPARAM lParam, BOOL&)
 {
-	HDC hDC = (HDC) wParam;
-	HGLRC hRC = (HGLRC) lParam;
-
-	m_psdlDoc.RenderScene(hDC, hRC);
-	m_cpvsDoc.RenderScene(hDC, hRC);
-
+	if (config.display.bRenderPSDL) m_psdlDoc.RenderScene();
+	if (config.display.bRenderBAI)  m_baiDoc.RenderScene();
+//	m_cpvsDoc.RenderScene();
 	return 0;
 }
 
@@ -190,9 +208,21 @@ LRESULT CMainFrame::OnViewResetCamera(WORD, WORD, HWND, BOOL&)
 	return 0;
 }
 
-LRESULT CMainFrame::OnViewWireframe(WORD, WORD, HWND, BOOL&)
+LRESULT CMainFrame::OnViewSettingChange(WORD, WORD wID, HWND, BOOL&)
 {
-	g_options.display.bWireframe ^= 1;
+	bool b = false;
+
+	switch (wID)
+	{
+		case ID_VIEW_AUTO_CAMERA:     b = config.display.bAutoCenter    ^= 1; break;
+		case ID_VIEW_WIREFRAME:       b = config.display.bWireframe     ^= 1; break;
+		case ID_VIEW_TEST_PVS:        b = config.display.bTestPVS       ^= 1; break;
+		case ID_VIEW_TEST_AI_CULLING: b = config.display.bTestAICulling ^= 1; break;
+		case ID_VIEW_RENDER_PSDL:     b = config.display.bRenderPSDL    ^= 1; break;
+		case ID_VIEW_RENDER_BAI:      b = config.display.bRenderBAI     ^= 1; break;
+	}
+
+	UISetCheck(wID, b);
 	m_view.Invalidate();
 	return 0;
 }
@@ -230,19 +260,55 @@ LRESULT CMainFrame::OnViewBar(WORD, WORD wID, HWND, BOOL&)
 			return 0;
 	}
 
-	if (::IsWindowVisible(hWnd))
+	BOOL bVisible = ::IsWindowVisible(hWnd);
+
+	if (bVisible)
 		m_dock.HideWindow(hWnd);
 	else
 		m_dock.DockWindow(hWnd, DOCK_LASTKNOWN);
 
+	UISetCheck(wID, !bVisible);
 	return 0;
 }
 
+void CMainFrame::SetNumeral(WORD wID)
+{
+	WORD wIDOther = wID == ID_VIEW_NUMERAL_HEX ? ID_VIEW_NUMERAL_DEC : ID_VIEW_NUMERAL_HEX;
+	UISetCheck(wID, true);
+	UISetCheck(wIDOther, false);
+}
+
+LRESULT CMainFrame::OnViewSetNumeral(WORD, WORD wID, HWND, BOOL&)
+{
+	config.display.eNumeral = wID == ID_VIEW_NUMERAL_HEX ? ::Numeral::hex : ::Numeral::dec;
+	SetNumeral(wID);
+	m_wndBlocks.m_list.Invalidate();
+	m_wndAttribs.m_list.Invalidate();
+	m_wndPerimeter.m_list.Invalidate();
+	return 0;
+}
+
+LRESULT CMainFrame::OnViewHideAll(WORD, WORD wID, HWND, BOOL&)
+{
+	psdl* pPSDL = m_psdlDoc.GetDocument();
+	for (unsigned long i = 0; i < pPSDL->num_blocks(); ++i)
+	{
+		pPSDL->get_block(i)->enabled = false;
+	}
+	m_view.Invalidate();
+	m_wndBlocks.m_list.Invalidate();
+	return 0;
+}
 void CMainFrame::SelectBlock(long iIndex)
 {
 	this_ptr->m_psdlDoc.SelectBlock(iIndex);
 	this_ptr->m_cpvsDoc.SelectBlock(iIndex);
 
+	if (config.display.bAutoCenter)
+	{
+		Vertex v = -this_ptr->m_psdlDoc.GetBlock(iIndex)->get_center();
+		this_ptr->m_view.MoveAxis(v.x, v.y, v.z);
+	}
 	this_ptr->m_view.Invalidate();
 }
 
@@ -279,31 +345,40 @@ LRESULT CMainFrame::OnEditTransform(WORD, WORD wID, HWND, BOOL&)
 	return 0;
 }
 
+LRESULT CMainFrame::OnReverseVertices(WORD, WORD wID, HWND, BOOL&)
+{
+	int nItem = -1;
+	if ((nItem = m_wndAttribs.m_list.GetNextItem(nItem, LVNI_SELECTED)) != -1)
+	{
+		m_wndAttribs.GetBlock()->get_attribute(nItem)->reverse();
+	}
+	return 0;
+}
+
 bool CMainFrame::TransformEntities(TransformProps& sProps)
 {
-/*	std::vector<unsigned long> aVerts;
+	vector<unsigned long> blockIDs;
+	vector<psdl::block*> blocks = m_wndBlocks.GetSelected(&blockIDs);
 
-	int iBlock = -1;
+	psdl* pPSDL = m_psdlDoc.GetDocument();
+	psdl::block* pBlock;
+	psdl::attribute* pAtb;
 
-	while ((iBlock = m_wndBlocks.m_list.GetNextItem(iBlock, LVNI_SELECTED)) >= 0)
+	unsigned long nVertices = pPSDL->num_vertices();
+
+	unsigned long i, j, k;
+
+	vector<bool> vertices(nVertices, false);
+
+	for (i = 0; i < blocks.size(); ++i)
 	{
-		psdl::block* block = m_psdlDoc.GetBlock(iBlock);
+		pBlock = blocks[i];
 
-		for (unsigned long iPt = 0; iPt < block->num_perimeters(); iPt++)
+		for (j = 0; j < pBlock->num_attributes(); ++j)
 		{
-			unsigned short iVertex = block->_perimeter[iPt].vertex;
+			pAtb = pBlock->get_attribute(j);
 
-			if (std::find(aVerts.begin(), aVerts.end(), iVertex) == aVerts.end())
-				aVerts.push_back(iVertex);
-		}
-
-		for (unsigned long iAtb = 0; iAtb < block->num_attributes(); iAtb++)
-		{
-			psdl::attribute* atb = block->get_attribute(iAtb);
-
-			unsigned long j;
-
-			switch (atb->type)
+			switch (pAtb->type)
 			{
 				case ATB_ROAD:
 				case ATB_SIDEWALK:
@@ -312,67 +387,35 @@ bool CMainFrame::TransformEntities(TransformProps& sProps)
 				case ATB_TRIANGLEFAN:
 				case ATB_DIVIDEDROAD:
 				case ATB_ROOFTRIANGLEFAN:
-
-					for (j = 0; j < static_cast<psdl::road_strip*>(atb)->num_vertices(); j++)
-					{
-						unsigned short iVertex = static_cast<psdl::road_strip*>(atb)->get_vertex_ref(j);
-
-						if (std::find(aVerts.begin(), aVerts.end(), iVertex) == aVerts.end())
-							aVerts.push_back(iVertex);
-					}
-					break;
-
 				case ATB_CROSSWALK:
-
-					for (j = 0; j < 4; j++)
-					{
-						unsigned short iVertex = static_cast<psdl::crosswalk*>(atb)->get_vertex_ref(j);
-
-						if (std::find(aVerts.begin(), aVerts.end(), iVertex) == aVerts.end())
-							aVerts.push_back(iVertex);
-					}
-					break;
-
 				case ATB_SLIVER:
 				case ATB_FACADEBOUND:
+					
+					for (k = 0; k < static_cast<psdl::vertex_attribute*>(pAtb)->num_vertices(); ++k)
 					{
-						unsigned short iVertex;
-
-						iVertex = static_cast<psdl::facade*>(atb)->left;
-						if (std::find(aVerts.begin(), aVerts.end(), iVertex) == aVerts.end())
-							aVerts.push_back(iVertex);
-
-						iVertex = static_cast<psdl::facade*>(atb)->right;
-						if (std::find(aVerts.begin(), aVerts.end(), iVertex) == aVerts.end())
-							aVerts.push_back(iVertex);
-
-						iVertex = static_cast<psdl::facade*>(atb)->top;
-						if (std::find(aVerts.begin(), aVerts.end(), iVertex) == aVerts.end())
-							aVerts.push_back(iVertex);
+						vertices[static_cast<psdl::vertex_attribute*>(pAtb)->get_vertex_ref(k)] = true;
 					}
 					break;
 			}
 		}
 	}
 
-	if (aVerts.size() > 0)
+	Vertex* pVertex;
+	Vertex vOrigin(0, 0, 0);
+	Vertex vTranslate(sProps.fX, sProps.fY, sProps.fZ);
+	double fRotate = DEG2RAD(sProps.fAngle);
+
+	for (i = 0; i < nVertices; ++i)
 	{
-		psdl::vertex vTranslate(sProps.fX, sProps.fY, sProps.fZ);
-		double dRotate = sProps.fAngle / 180.0 * PI;
-
-		psdl::vertex vOrigin(0, 0, 0);
-
-		for (size_t i = 0; i < aVerts.size(); i++)
+		if (vertices[i] == true)
 		{
-			psdl::vertex* pVertex = m_psdlDoc.GetDocument()->get_vertex(aVerts[i]);
+			pVertex = pPSDL->get_vertex(i);
 			m_psdlDoc.MoveVertex(pVertex, vTranslate);
-			m_psdlDoc.RotateVertex(pVertex, vOrigin, dRotate);
+			m_psdlDoc.RotateVertex(pVertex, vOrigin, fRotate);
 		}
-
-		m_view.Invalidate();
-		return true;
 	}
-*/
+
+	m_view.Invalidate();
 	return false;
 }
 
@@ -407,7 +450,7 @@ LRESULT CMainFrame::OnDuplicateBlock(WORD, WORD wID, HWND, BOOL&)
 		m_wndBlocks.m_list.GetSelItems(nBlocks, aBlockIds);
 
 		// Experiment, should be removed
-	//	psdl::vertex vOffset(1220.0787f, -20.2605f, -870.612f);
+	//	Vertex vOffset(1220.0787f, -20.2605f, -870.612f);
 
 		for (unsigned char i = 0; i < g_duplicateProps.nCount; i++)
 		{
@@ -587,36 +630,224 @@ LRESULT CMainFrame::OnDeleteBlock(WORD, WORD, HWND, BOOL&)
 	return FALSE;
 }
 */
-LRESULT CMainFrame::OnGeneratePerimeters(WORD, WORD, HWND, BOOL&)
+LRESULT CMainFrame::OnInsertAttribute(WORD, WORD wID, HWND, BOOL&)
 {
-	CPerimetersDlg dlg;
+	psdl::block* pBlock = m_wndAttribs.GetBlock();
+	psdl::attribute* pAtb = NULL;
+	vector<Vertex>* pVertices = &m_psdlDoc.GetDocument()->_vertices;
 
-	if (IDOK == dlg.DoModal())
+	switch (wID)
 	{
-		vector<psdl::block*> blocks = m_wndBlocks.GetSelected();
-		vector<psdl::block*>::iterator i;
+		case ID_INSERT_ROADSTRIP:			pAtb = new psdl::road_strip(pVertices);			break;
+		case ID_INSERT_SIDEWALKSTRIP:		pAtb = new psdl::sidewalk_strip(pVertices);		break;
+		case ID_INSERT_RECTANGLESTRIP:		pAtb = new psdl::rectangle_strip(pVertices);	break;
+		case ID_INSERT_SLIVER:				pAtb = new psdl::sliver(pVertices);				break;
+		case ID_INSERT_CROSSWALK:			pAtb = new psdl::crosswalk(pVertices);			break;
+		case ID_INSERT_ROADTRIANGLEFAN:		pAtb = new psdl::road_triangle_fan(pVertices);	break;
+		case ID_INSERT_TRIANGLEFAN:			pAtb = new psdl::triangle_fan(pVertices);		break;
+		case ID_INSERT_FACADEBOUND:			pAtb = new psdl::facade_bound(pVertices);		break;
+		case ID_INSERT_DIVIDEDROADSTRIP:	pAtb = new psdl::divided_road_strip(pVertices);	break;
+		case ID_INSERT_TUNNEL:				pAtb = new psdl::tunnel();						break;
+		case ID_INSERT_TUNNELJUNCTION:		pAtb = new psdl::junction();					break;
+		case ID_INSERT_TEXTUREREF:			pAtb = new psdl::texture();						break;
+		case ID_INSERT_FACADE:				pAtb = new psdl::facade(pVertices);				break;
+		case ID_INSERT_ROOFTRIANGLEFAN:		pAtb = new psdl::roof_triangle_fan(pVertices);	break;
+	}
 
-		for (i = blocks.begin(); i != blocks.end(); ++i)
+	if (pAtb)
+	{
+		int nItem = -1;
+		while((nItem = m_wndAttribs.m_list.GetNextItem(nItem, LVNI_SELECTED)) != -1)
 		{
-			if (g_options.dialogs.gen_perimeters.bDeleteExisting)
-				(*i)->_perimeter.clear();
-
-			(*i)->generate_perimeter();
-
-			ATLTRACE("Block %x done\n", i - blocks.begin());
+			pBlock->_attributes.insert(pBlock->_attributes.begin() + nItem, pAtb);
+			m_wndAttribs.m_list.Invalidate();
 		}
 	}
 
 	return FALSE;
 }
+/*
+psdl::road_strip* FindRoadAttribute(psdl::block* pBlock)
+{
+	for (unsigned long j = 0; j < pBlock->num_attributes(); ++j)
+	{
+		unsigned char type = pBlock->get_attribute(j)->type;
+
+		if (type == ATB_RECTANGLE || type == ATB_ROAD || type == ATB_DIVIDEDROAD)
+		{
+			return static_cast<psdl::road_strip*>(pBlock->get_attribute(j));
+		}
+	}
+	return NULL;
+}
+
+int FindVertex(psdl* pPSDL, Vertex* pSearchVertex, unsigned long nSearchOffset)
+{
+	for (unsigned long i = nSearchOffset; i < pPSDL->num_vertices(); ++i)
+	{
+		if (pSearchVertex->Match(*pPSDL->get_vertex(i)))
+		{
+			return i;
+		}
+	}
+	return -1;
+}
+*/
+LRESULT CMainFrame::OnGeneratePerimeters(WORD, WORD, HWND, BOOL&)
+{
+/*	CPerimetersDlg dlg;
+
+	if (IDOK == dlg.DoModal())
+	{
+		vector<unsigned long> blockIDs;
+		vector<psdl::block*> blocks = m_wndBlocks.GetSelected(&blockIDs);
+		vector<psdl::block*>::iterator it;
+
+	//	vector<Vertex>::iterator vertexListBegin = m_psdlDoc.GetDocument()->_vertices.begin();
+
+		psdl* pPSDL = m_psdlDoc.GetDocument();
+
+	//	const float fExtend = 3.f;
+	//	const float fExtend = 5.f;
+		float fExtend = config.dialogs.perimeters.fExtend;
+
+		unsigned long nVertices = pPSDL->num_vertices();
+
+		for (it = blocks.begin(); it != blocks.end(); ++it)
+		{
+			if (config.dialogs.perimeters.bDeleteExisting)
+				(*it)->_perimeter.clear();
+
+		//	(*it)->generate_perimeter();
+
+			psdl::road_strip* pTAtb = FindRoadAttribute(*it);
+
+			if (pTAtb == NULL) continue;
+
+			unsigned char  p = pTAtb->type == ATB_RECTANGLE ? 2 : (pTAtb->type == ATB_ROAD ? 4 : 6);
+			unsigned short n = pTAtb->num_vertices();
+
+			Vertex *v1, *v2;
+			Vertex outerVertex1, outerVertex2;
+			unsigned long nOuterVertex1, nOuterVertex2;
+			float a;
+
+			v1 = pTAtb->get_vertex(0);
+			v2 = pTAtb->get_vertex(p - 1);
+			a = atan2(v2->x - v1->x, v2->z - v1->z);
+
+			outerVertex1.x = v1->x - sin(a) * fExtend;
+			outerVertex1.y = v1->y;
+			outerVertex1.z = v1->z - cos(a) * fExtend;
+
+			outerVertex2.x = v2->x + sin(a) * fExtend;
+			outerVertex2.y = v2->y;
+			outerVertex2.z = v2->z + cos(a) * fExtend;
+
+			nOuterVertex1 = FindVertex(pPSDL, &outerVertex1, nVertices);
+			nOuterVertex2 = FindVertex(pPSDL, &outerVertex2, nVertices);
+			if (nOuterVertex1 == -1) nOuterVertex1 = pPSDL->add_vertex(outerVertex1);
+			if (nOuterVertex2 == -1) nOuterVertex2 = pPSDL->add_vertex(outerVertex2);
+
+			(*it)->add_perimeter_point(nOuterVertex1, 0);
+			if (p > 2) {
+				(*it)->add_perimeter_point(pTAtb->get_vertex_ref(1), 0);
+				(*it)->add_perimeter_point(pTAtb->get_vertex_ref(p - 2), 0);
+			}
+			(*it)->add_perimeter_point(nOuterVertex2, 0);
+
+			v1 = pTAtb->get_vertex(n - 1);
+			v2 = pTAtb->get_vertex(n - p);
+			a = atan2(v2->x - v1->x, v2->z - v1->z);
+
+			outerVertex1.x = v1->x - sin(a) * fExtend;
+			outerVertex1.y = v1->y;
+			outerVertex1.z = v1->z - cos(a) * fExtend;
+
+			outerVertex2.x = v2->x + sin(a) * fExtend;
+			outerVertex2.y = v2->y;
+			outerVertex2.z = v2->z + cos(a) * fExtend;
+
+			nOuterVertex1 = FindVertex(pPSDL, &outerVertex1, nVertices);
+			nOuterVertex2 = FindVertex(pPSDL, &outerVertex2, nVertices);
+			if (nOuterVertex1 == -1) nOuterVertex1 = pPSDL->add_vertex(outerVertex1);
+			if (nOuterVertex2 == -1) nOuterVertex2 = pPSDL->add_vertex(outerVertex2);
+
+			(*it)->add_perimeter_point(nOuterVertex1, 0);
+			if (p > 2) {
+				(*it)->add_perimeter_point(pTAtb->get_vertex_ref(n - 2), 0);
+				(*it)->add_perimeter_point(pTAtb->get_vertex_ref(n - p + 1), 0);
+			}
+			(*it)->add_perimeter_point(nOuterVertex2, 0);
+
+		//	ATLTRACE("Block %x done\n", it - blocks.begin());
+		}
+
+		if (config.dialogs.perimeters.bNeighbours)
+		{
+			for (unsigned long l = 0; l < blocks.size(); ++l)
+			{
+				for (unsigned long i = 0; i < blocks[l]->num_perimeters(); ++i)
+				{
+					for (unsigned long j = 0; j < blocks.size(); ++j)
+					{
+						if (l == j) continue;
+
+						for (unsigned long k = 0; k < blocks[j]->num_perimeters(); ++k)
+						{
+							if (blocks[l]->get_perimeter_point(i)->vertex == blocks[j]->get_perimeter_point(k)->vertex)
+							{
+								blocks[l]->get_perimeter_point(i)->block = blockIDs[j] + 1;
+								break;
+							}
+						}
+					}
+				}
+			}
+		}
+
+		GetView()->Invalidate();
+	}
+*/
+	return FALSE;
+}
 
 LRESULT CMainFrame::OnOptimizePSDL(WORD, WORD, HWND, BOOL&)
 {
+	psdl *pPSDL = m_psdlDoc.GetDocument();
+
+	unsigned long i, j, nVertices = pPSDL->_vertices.size();
+	unsigned long* vertexRemap = new unsigned long[nVertices];
+	unsigned long nRemaining = nVertices;
+
+	for (i = 0; i < nVertices; ++i)
+	{
+		j = i;
+		vertexRemap[i] = j;
+	}
+
+	for (i = 0; i < nVertices; ++i)
+	{
+		for (j = 0; j < nVertices; ++j)
+		{
+			if (i != j && vertexRemap[j] == j && pPSDL->get_vertex(i)->Match(*pPSDL->get_vertex(j)))
+			{
+				vertexRemap[j] = i;
+				--nRemaining;
+			}
+		}
+	}
+
+	delete[] vertexRemap;
+
+	ATLTRACE("Vertex count reduced from %u to %u\n", nVertices, nRemaining);
+	return 0;
+
 	COptimizeDlg dlg;
 
 	if (IDOK == dlg.DoModal())
 	{
-		if (g_optimizeProps.bTextureRefs)
+/*		if (g_optimizeProps.bTextureRefs)
 		{
 		//	vector<vertexMap> textureMap[3];
 			vector<std::string> newTexList;
@@ -644,22 +875,22 @@ LRESULT CMainFrame::OnOptimizePSDL(WORD, WORD, HWND, BOOL&)
 							++it;
 
 					// WRONG !!
-					/*	if (nLastTexRef == nTexRef)
-						{
-							if ((*it)->last)
-							{
-								(*(it - 1))->last = true;
-							}
+					//	if (nLastTexRef == nTexRef)
+					//	{
+					//		if ((*it)->last)
+					//		{
+					//			(*(it - 1))->last = true;
+					//		}
 
-							it = pBlock->_attributes.erase(it);
-							pBlock->addAttributeSize(-2);
+					//		it = pBlock->_attributes.erase(it);
+					//		pBlock->addAttributeSize(-2);
 
-							ATLTRACE("Double texture reference: 0x%x = 0x%x\n", nTexRef, nLastTexRef);
-						}
-						else
-						{
-							++it;
-						}*/
+					//		ATLTRACE("Double texture reference: 0x%x = 0x%x\n", nTexRef, nLastTexRef);
+					//	}
+					//	else
+					//	{
+					//		++it;
+					//	}
 					}
 					else
 						++it;
@@ -724,12 +955,12 @@ LRESULT CMainFrame::OnOptimizePSDL(WORD, WORD, HWND, BOOL&)
 					}
 				}
 			}
-/*
-			if (g_optimizeProps.bTextures)
-				m_psdlDoc.GetDocument()->_textures = newTexList;
-			//	g_psdl->m_aTextures.assign(newTexList.begin(), newTexList.end());
-			}*/
-		}
+
+		//	if (g_optimizeProps.bTextures)
+		//		m_psdlDoc.GetDocument()->_textures = newTexList;
+		//	//	g_psdl->m_aTextures.assign(newTexList.begin(), newTexList.end());
+		//	}
+		}*/
 /*
 		if (g_optimizeProps.bTextures)
 		{
@@ -765,6 +996,8 @@ LRESULT CMainFrame::OnOptimizePSDL(WORD, WORD, HWND, BOOL&)
 			}
 			while (atb = g_psdl->nextAttribute(ATB_DIVIDEDROAD, tex));
 		}*/
+
+		m_view.Invalidate();
 	}
 
 	return 0;
@@ -773,8 +1006,8 @@ LRESULT CMainFrame::OnOptimizePSDL(WORD, WORD, HWND, BOOL&)
 LRESULT CMainFrame::OnLaunchMM2(WORD, WORD wID, HWND, BOOL&)
 {
 	SHELLEXECUTEINFO sei;
-	LPCTSTR lpFile = g_options.tools.strMM2Exe.c_str();
-	LPCTSTR lpDir  = g_options.tools.strMM2Dir.c_str();
+	LPCTSTR lpFile = config.tools.strMM2Exe.c_str();
+	LPCTSTR lpDir  = config.tools.strMM2Dir.c_str();
 
 //	_splitpath(lpFile, NULL, lpDir, NULL, NULL);
 //	ExpandEnvironmentStrings(lpDirEnv, lpDir, MAX_PATH);
@@ -802,15 +1035,53 @@ LRESULT CMainFrame::OnLaunchMM2(WORD, WORD wID, HWND, BOOL&)
 	if (int(sei.hInstApp) == SE_ERR_FNF &&
 		IDYES == MessageBox("The path currently set for the Midtown Madness 2 executable is invalid.\nDo you want to specify a new path in the \"Options\" dialog?", "Invalid path", MB_YESNO | MB_ICONQUESTION))
 	{
-	//	COptionsDlg dlg(2);
-	//	dlg.DoModal();
 		ShowOptions(ID_OPTIONS_TOOLS);
 	}
 
 	return 0;
 }
 
-INT CMainFrame::ShowOptions(INT iPageID = -1)
+LRESULT CMainFrame::OnLoadSDLView(WORD, WORD wID, HWND, BOOL&)
+{
+	LPTSTR lpTempPath = new TCHAR[MAX_PATH+1];
+	GetTempPath(MAX_PATH+1, lpTempPath);
+
+	string strTempFile = lpTempPath + m_psdlDoc.GetBaseName() + ".sdl";
+
+	delete[] lpTempPath;
+
+//	DocTemplateBase::ThreadParams params(&m_psdlDoc, strTempFile);
+	CProgressDlg2 dlg;
+//	error::code code = dlg.Run(&m_psdlDoc.WriteSDLThread, &params);
+
+	PSDLDocTemplate::WriteSDLThread::pDocTmpl = &m_psdlDoc;
+	PSDLDocTemplate::WriteSDLThread::strFileName = strTempFile;
+
+	error::code code = dlg.Run(&PSDLDocTemplate::WriteSDLThread::Run);
+	
+	if (code & error::ok)
+	{
+		SHELLEXECUTEINFO sei;
+		LPCTSTR lpFile = config.tools.strSDLViewExe.c_str();
+		LPCTSTR lpDir  = _T("..");
+
+		ATLTRACE("\n%s\n", strTempFile.c_str());
+
+		ZeroMemory(&sei, sizeof(SHELLEXECUTEINFO));
+
+		sei.cbSize = sizeof(SHELLEXECUTEINFO);
+		sei.fMask = SEE_MASK_DOENVSUBST | SEE_MASK_FLAG_NO_UI;
+		sei.lpFile = lpFile;
+		sei.lpParameters = strTempFile.c_str();
+		sei.lpDirectory = lpDir;
+		sei.nShow = SW_SHOWNORMAL;
+
+		ShellExecuteEx(&sei);
+	}
+	return 0;
+}
+
+int CMainFrame::ShowOptions(int iPageID = -1)
 {
 	COptionsPageGeneral     pgGeneral;
 	COptionsPageRendering   pgRendering;
@@ -912,37 +1183,47 @@ BOOL CMainFrame::OpenDocument(CString strDocName)
 	{
 		void* pDoc = NULL;
 
-		IOParams pio((LPCTSTR) strDocName, pDoc, pDocTmpl);
+//		IOParams pio((LPCTSTR) strDocName, pDoc, pDocTmpl);
 
 		strExt.MakeUpper();
 
-		CProgressDlg dlg(&DocTemplateBase::_LoadDocumentThread, &pio, "Loading " + strExt + " file...");
-		dlg.DoModal();
+//		CProgressDlg dlg(&DocTemplateBase::_LoadDocumentThread, &pio, "Loading " + strExt + " file...");
+//		dlg.DoModal();
 
-		error::code code = dlg.GetError();
-		ATLTRACE("\nReturn code: %x\n", code);
+//		error::code code = dlg.GetError();
+//		ATLTRACE("\nReturn code: %x\n", code);
+
+		
+
+		CProgressDlg2 dlg;
+	//	dlg.Run(&DocTemplateBase::LoadDocumentThread);
+		dlg.SetCaption("Loading " + strExt + " file...");
+
+		DocTemplateBase::ThreadParams params(pDocTmpl, (LPCTSTR)strDocName, &pDoc);
+
+		error::code code = dlg.Run(&DocTemplateBase::LoadDocumentThread, &params);
 
 	//	error::code code = pDocTmpl->OpenDocument(strFileName);
 
 		if (code & error::ok)
 		{
-			if (iMode == ID_MODE_PSDL)
+		/*	if (iMode == ID_MODE_PSDL)
 			{
 				m_psdlDoc.UnloadTextures(m_view.m_hDC, m_view.m_hRC);
-			}
+			}*/
 
 			pDocTmpl->SetDocument(pDoc, (LPCTSTR) strDocName);
 
 			ATLTRACE("Working directory: %s\n", pDocTmpl->GetPathName().c_str());
 			SetCurrentDirectory(pDocTmpl->GetPathName().c_str());
 
-			if (iMode == ID_MODE_PSDL)
+/*			if (iMode == ID_MODE_PSDL)
 			{
 				GLParams pgl(m_view.GetDC(), m_view.GetRC(), &m_psdlDoc);
 				CProgressDlg texDlg(&PSDLDocTemplate::_LoadTextures, &pgl, "Loading PSDL file...");
 				texDlg.DoModal();
 			//	m_psdlDoc.LoadTextures(m_view.m_hDC, m_view.m_hRC);
-			}
+			}*/
 
 			pDocTmpl->UpdateViews();
 
@@ -957,6 +1238,8 @@ BOOL CMainFrame::OpenDocument(CString strDocName)
 
 			if (iMode == ID_MODE_PSDL)
 				m_cpvsDoc.SetPSDL(m_psdlDoc.GetDocument());
+			else if (iMode == ID_MODE_CPVS)
+				m_psdlDoc.GetView()->SetCPVS(m_cpvsDoc.GetDocument());
 
 			SetEditingMode(iMode);
 			UpdateCaption();
@@ -971,15 +1254,20 @@ BOOL CMainFrame::OpenDocument(CString strDocName)
 
 			if (code & error::wrong_format)
 			{
-				CString strErr = _T("Error");
+			//	CString strErr = _T("Error");
 
-				switch (iMode)
-				{
-					case ID_MODE_PSDL: strErr = "Not a PSDL file"; break;
-					case ID_MODE_CPVS: strErr = "Not a CPVS file"; break;
-				}
+			//	switch (iMode)
+			//	{
+			//		case ID_MODE_PSDL: strErr = "Not a PSDL file"; break;
+			//		case ID_MODE_CPVS: strErr = "Not a CPVS file"; break;
+			//		case ID_MODE_BAI:  strErr = "Not a BAI file";  break;
+			//	}
 
-				MessageBox(strErr, LS(IDR_MAINFRAME), MB_ICONWARNING);
+				CString sGet, sErr;
+				sGet.LoadString(IDS_INVALID_FORMAT);
+				sErr.Format(sGet, strExt);
+
+				MessageBox(sErr, LS(IDR_MAINFRAME), MB_ICONWARNING);
 			}
 			else if (code & error::aborted)
 			{
@@ -1023,7 +1311,7 @@ LRESULT CMainFrame::OnFileOpen(WORD, WORD, HWND, BOOL& bHandled)
 */
 	CString sSelectedFile;
 
-	CCenterFileDialog fDlg(TRUE, _T("psdl"), NULL, OFN_NOCHANGEDIR | OFN_HIDEREADONLY, _T("\
+	CCenterFileDialog fDlg(TRUE, _T("psdl"), NULL, OFN_NOCHANGEDIR | OFN_HIDEREADONLY | OFN_FILEMUSTEXIST, _T("\
 		MM2 Files (*.psdl; *.psd; *.cpvs; *.inst; *.bai; *.pathset)\0*.psdl; *.psd; *.cpvs; *.inst; *.bai; *.pathset\0\
 		MM2 City Geometry (*.psdl; *.psd)\0*.psdl; *.psd\0\
 		MM2 Potentially Visible Sets (*.cpvs)\0*.cpvs\0\
@@ -1033,11 +1321,11 @@ LRESULT CMainFrame::OnFileOpen(WORD, WORD, HWND, BOOL& bHandled)
 		All Files (*.*)\0*.*\0")
 	);
 
-	fDlg.m_ofn.lpstrInitialDir = g_options.files.strBrowseDir.c_str();
+	fDlg.m_ofn.lpstrInitialDir = config.files.strBrowseDir.c_str();
 
 	if (IDOK == fDlg.DoModal())
 	{
-		g_options.files.strBrowseDir = fDlg.GetFolderPath();
+		config.files.strBrowseDir = fDlg.GetFolderPath();
 
 		OpenDocument(fDlg.m_szFileName);
 	}
@@ -1058,15 +1346,26 @@ LRESULT CMainFrame::OnFileSaveAs(WORD, WORD, HWND, BOOL&)
 {
 	CString sSelectedFile;
 
-	CCenterFileDialog fDlg(FALSE, _T("psdl"), GetActiveDocument()->GetFileName().c_str(), OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, _T("\
-		MM2 City Geometry (*.psdl; *.psd)\0*.psdl; *.psd\0")
+//	CCenterFileDialog fDlg(FALSE, _T("psdl"), GetActiveDocument()->GetFileName().c_str(), OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, _T("\
+//		MM2 City Geometry (*.psdl; *.psd)\0*.psdl; *.psd\0")
+//	);
+
+	CString sFilter(GetActiveDocument()->GetExtensionString().c_str());
+
+	CCenterFileDialog fDlg(
+		FALSE,
+		NULL,
+		GetActiveDocument()->GetFileName().c_str(),
+		OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT,
+		sFilter
 	);
 
 	if (IDOK == fDlg.DoModal())
 	{
 		HCURSOR hCursor = SetCursor(LoadCursor(NULL, IDC_WAIT));
 
-		error::code code = m_psdlDoc.SaveDocument(fDlg.GetPathName());
+	//	error::code code = m_psdlDoc.SaveDocument(fDlg.GetPathName());
+		error::code code = GetActiveDocument()->SaveDocument(fDlg.GetPathName());
 
 		SetCursor(hCursor);
 
@@ -1093,37 +1392,46 @@ LRESULT CMainFrame::OnFileImport(WORD, WORD, HWND, BOOL&)
 	CString sSelectedFile;
 
 	CCenterFileDialog fDlg(TRUE, NULL, NULL, OFN_HIDEREADONLY, _T("\
-		3D Studio Mesh (*.3ds)\0*.3ds\0\
-		MM2 SDL (*.sdl)\0*.sdl\0")
+		Scenery Description Language (*.sdl)\0*.sdl\0")
+	//	3D Studio Mesh (*.3ds)\0*.3ds\0")
 	);
 
 	fDlg.SetCaption(_T("Import"));
 
 	if (IDOK == fDlg.DoModal())
 	{
-		HCURSOR hCursor = SetCursor(LoadCursor(NULL, IDC_WAIT));
+//		HCURSOR hCursor = SetCursor(LoadCursor(NULL, IDC_WAIT));
 
 		LPTSTR strDocName = fDlg.GetPathName();
 		CString strExt = strrchr(strDocName, '.') + 1;
 
-		error::code code = error::failure;
+		error::code code = error::ok;
 
-		if (strcmpi(strExt, "3ds") == 0)
-			code = m_psdlDoc.Read3DS(strDocName); else
-		if (strcmpi(strExt, "sdl") == 0)
-			code = m_psdlDoc.ReadSDL(strDocName);
+//		if (strcmpi(strExt, "3ds") == 0)
+//			code = m_psdlDoc.Read3DS(strDocName); else
+//		if (strcmpi(strExt, "sdl") == 0)
+//			code = m_psdlDoc.ReadSDL(strDocName);
 
-		SetCursor(hCursor);
+//		SetCursor(hCursor);
+
+		CProgressDlg2 dlg;
+	//	DocTemplateBase::ThreadParams params(&m_psdlDoc, (LPCTSTR)strDocName);
+	//	code = dlg.Run(&m_psdlDoc.ReadSDLThread, &params);
+
+		PSDLDocTemplate::ReadSDLThread::pDocTmpl = &m_psdlDoc;
+		PSDLDocTemplate::ReadSDLThread::strFileName = (LPCTSTR)strDocName;
+
+		code = dlg.Run(&PSDLDocTemplate::ReadSDLThread::Run);
 
 		if (code & error::ok)
 		{
-			m_psdlDoc.LoadTextures(m_view.m_hDC, m_view.m_hRC);
+		//	m_psdlDoc.LoadTextures(m_view.m_hDC, m_view.m_hRC);
 			SetEditingMode(ID_MODE_PSDL);
 			m_psdlDoc.UpdateViews();
 			m_view.Invalidate();
 			m_view.SetFocus();
 		}
-		else
+		else if (!(code & error::aborted))
 		{
 			DWORD dwErrorCode = GetLastError();
 			LPTSTR lpMsg = NULL;
@@ -1133,7 +1441,7 @@ LRESULT CMainFrame::OnFileImport(WORD, WORD, HWND, BOOL&)
 		}
 	}
 
-	return FALSE;
+	return 0;
 }
 
 LRESULT CMainFrame::OnFileExport(WORD, WORD, HWND, BOOL&)
@@ -1148,13 +1456,14 @@ LRESULT CMainFrame::OnFileExport(WORD, WORD, HWND, BOOL&)
 
 	if (IDOK == fDlg.DoModal())
 	{
-		HCURSOR hCursor = SetCursor(LoadCursor(NULL, IDC_WAIT));
+		CProgressDlg2 dlg;
 
-		error::code code = m_psdlDoc.WriteSDL(fDlg.GetPathName());
+		PSDLDocTemplate::WriteSDLThread::pDocTmpl = &m_psdlDoc;
+		PSDLDocTemplate::WriteSDLThread::strFileName = fDlg.GetPathName();
 
-		SetCursor(hCursor);
+		error::code code = dlg.Run(&PSDLDocTemplate::WriteSDLThread::Run);
 
-		if (code != error::ok)
+		if (!(code & error::ok))
 		{
 			DWORD dwErrorCode = GetLastError();
 			LPTSTR lpMsg = NULL;
@@ -1164,7 +1473,7 @@ LRESULT CMainFrame::OnFileExport(WORD, WORD, HWND, BOOL&)
 		}
 	}
 
-	return FALSE;
+	return 0;
 }
 
 DocTemplateBase* CMainFrame::GetActiveDocument(void)
@@ -1173,6 +1482,7 @@ DocTemplateBase* CMainFrame::GetActiveDocument(void)
 	{
 		case ID_MODE_PSDL: return &m_psdlDoc;
 		case ID_MODE_CPVS: return &m_cpvsDoc;
+		case ID_MODE_BAI:  return &m_baiDoc;
 	}
 	return NULL;
 }
@@ -1184,13 +1494,18 @@ BOOL CMainFrame::CanSave(void)
 	if (pDoc)
 		return pDoc->IsModified();
 
-	return FALSE;
+	return 0;
 }
 
 LRESULT CMainFrame::OnFileSave(WORD, WORD, HWND, BOOL& bHandled)
 {
-	if (!GetActiveDocument()->FileExists())
+//	if (!GetActiveDocument()->FileExists())
+//		return OnFileSaveAs(NULL, NULL, NULL, bHandled);
+
+	if (!GetActiveDocument()->FileExists() || MessageBox("Overwrite same file? Click No to save under a different name.", "Save", MB_YESNOCANCEL | MB_ICONWARNING) == IDNO)
+	{
 		return OnFileSaveAs(NULL, NULL, NULL, bHandled);
+	}
 
 	if (GetActiveDocument()->SaveDocument() == error::ok)
 	{
@@ -1242,4 +1557,145 @@ CString CMainFrame::GetRedoDescription(void)
 	CString sRet;
 	sRet.Format(LS(IDS_REDO_COMMAND), HistoryManager::GetRedoDescription());
 	return sRet;
+}
+
+LRESULT CMainFrame::OnGenerateBAI(WORD, WORD, HWND, BOOL&) // Generates routes + culling
+{
+	string strConfigFile = m_psdlDoc.GetPathName() + m_psdlDoc.GetBaseName() + "_baiconfig.txt";
+
+	if (GetFileAttributes(strConfigFile.c_str()) != INVALID_FILE_ATTRIBUTES)
+		config.dialogs.generateBAI.strConfigFile = strConfigFile;
+
+	CGenerateBAIDlg dlg;
+
+	if (IDOK == dlg.DoModal())
+	{
+	//	bool bResult1 = true, bResult2 = true;
+
+	//	if (config.dialogs.generateBAI.bRoutes)  bResult1 = GenerateAIRoutes();
+	//	if (config.dialogs.generateBAI.bCulling) bResult2 = GenerateAICulling();
+
+		BAIDocTemplate::GenerateBAIThread::pDocTmpl = &m_baiDoc;
+		BAIDocTemplate::GenerateBAIThread::pPSDL = m_psdlDoc.GetDocument();
+
+		CProgressDlg2 dlg;
+
+		if (dlg.Run(&BAIDocTemplate::GenerateBAIThread::Run))
+		{
+			m_view.Invalidate();
+		//	MessageBox("Done!");
+		//	SetEditingMode(ID_MODE_BAI);
+		}
+		else
+		{
+			MessageBox("Failed");
+		}
+	}
+
+/*	{
+		// Write TXT file
+		ofstream ofs(strTxtFile.c_str());
+
+		ofs << "nRoads: "         << joinedRoads.size()  << endl;
+		ofs << "nIntersections: " << roadIDs.size()      << endl;
+		ofs << "nBlocks: "        << pPSDL->num_blocks() << endl << endl;
+
+		for (j = 0; j < joinedRoads.size(); ++j)
+		{
+			psdl::road_strip* pJoinedRoad = joinedRoads[j];
+
+			ofs << "Road " << (j + 1) << " {" << endl;
+
+			ofs << "  Blocks: " << roadBlocks[j].size();
+
+			for (k = 0; k < roadBlocks[j].size(); ++k)
+			{
+				ofs << " " << roadBlocks[j][k];
+			}
+
+			ofs << endl;
+
+			ofs << "  Settings: 0 0.0 15.0" << endl;
+
+			ofs << endl;
+
+			ofs << "  RightLanes: 1"    << endl;
+			ofs << "  RightTrams: 0"    << endl;
+			ofs << "  RightTrains: 0"   << endl;
+			ofs << "  RightUnknown0: 1" << endl;
+			ofs << "  RightUnknown1: 0" << endl;
+
+			ofs << endl;
+
+			ofs << "  LeftLanes: 1"     << endl;
+			ofs << "  LeftTrams: 0"     << endl;
+			ofs << "  LeftTrains: 0"    << endl;
+			ofs << "  LeftUnknown0: 1"  << endl;
+			ofs << "  LeftUnknown1: 0"  << endl;
+
+			ofs << endl;
+
+			ofs << "  EndIntersection: " << junctionIDs[j].first << endl;
+			ofs << "  EndSettings: 52685 1 0" << endl;
+			ofs << "  EndTrafficLight: 0 0 0" << endl;
+			ofs << "                   0 0 0" << endl;
+
+			ofs << endl;
+
+			ofs << "  StartIntersection: " << junctionIDs[j].second << endl;
+			ofs << "  StartSettings: 52685 1 0" << endl;
+			ofs << "  StartTrafficLight: 0 0 0" << endl;
+			ofs << "                     0 0 0" << endl;
+
+			ofs << endl;
+
+			unsigned short nSections = pJoinedRoad->num_vertices() / (pJoinedRoad->type == ATB_ROAD ? 4 : 6);
+
+			ofs << "  Sections: " << nSections << endl;
+
+			for (k = 0; k < pJoinedRoad->num_vertices(); ++k)
+			{
+				Vertex* v = pJoinedRoad->get_vertex(k);
+
+				ofs << "    " << v->x << " " << v->y << " " << v->z << endl;
+			}
+
+			ofs << "}" << endl << endl;
+		}
+
+		for (j = 0; j < roadIDs.size(); ++j)
+		{
+			Vertex vCenter = CenterPoint(pPSDL->get_block(junctionBlocks[j]), pPSDL);
+
+			ofs << "Intersection " << (j + 1) << " {" << endl;
+
+			ofs << "  Block: " << junctionBlocks[j] + 1 << endl;
+
+			ofs << "  Center: " << vCenter.x << " " << vCenter.y << " " << vCenter.z << endl;
+
+			ofs << "  Roads: " << roadIDs[j].size();
+
+			for (k = 0; k < roadIDs[j].size(); ++k)
+			{
+				ofs << " " << roadIDs[j][k];
+			}
+
+			ofs << endl;
+
+			ofs << "}" << endl << endl;
+		}
+
+		delete[] usedBlocks;
+	}
+
+	if (CBaiGenerator::Run(strTxtFile, strBaiFile, strLogFile))
+	{
+		MessageBox(_T("Done!"), _T("Generate BAI"));
+	}
+	else
+	{
+		MessageBox(_T("Error!"), _T("Generate BAI"));
+	}*/
+
+	return 0;
 }

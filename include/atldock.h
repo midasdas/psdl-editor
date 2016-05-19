@@ -67,7 +67,7 @@ inline bool IsDocked(short Side) { return (Side==DOCK_TOP) || (Side==DOCK_BOTTOM
 
 #define MIN_DOCKPANE_SIZE 28
 #define DEFAULT_DOCKPANE_SIZE 90
-#define DEFAULT_FLOAT_SIZE 120
+#define DEFAULT_FLOAT_SIZE 200
 #define DEFAULT_SPLITTER_SIZE 6
 
 #define WM_DOCK_QUERYRECT        WM_USER+840
