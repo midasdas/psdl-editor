@@ -20,4 +20,15 @@ namespace error
 	const code cpvs_more_blocks = 0x20;
 };
 
+class ProgressMonitor // Abstract base class for progress dialog
+{
+public:
+	// Overridables
+	virtual void setMaximum(unsigned int value) {}
+	virtual void setProgress(unsigned int value) {}
+	virtual void setNote(std::string note) {}
+	virtual void setCaption(std::string caption) {}
+	virtual void done(void) {}
+};
+
 #endif

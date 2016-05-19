@@ -28,6 +28,11 @@ private:
 
 public:
 
+	std::string GetExtensionString(void) const
+	{
+		return _T("MM2 City Geometry (*.psdl; *.psd)\0*.psdl; *.psd\0");
+	}
+
 	void SetViews(	CBlocksWindow*     pBlocksWindow,
 					CPerimeterWindow*  pPerimeterWindow,
 					CAttributesWindow* pAttribsWindow,
@@ -49,9 +54,9 @@ public:
 		m_pPropsWindow->SetAttribute(NULL);
 	}
 
-	void RenderScene(HDC hDC, HGLRC hRC)
+	void RenderScene(void)
 	{
-		m_pView->RenderScene(hDC, hRC);
+		m_pView->RenderScene();
 	}
 
 	void NewDocument(std::string sFileName = _T("untitled.psdl"))
@@ -61,36 +66,79 @@ public:
 
 	error::code Read3DS(std::string strFileName);
 
-	error::code ReadSDL(std::string strFileName)
+	error::code ReadSDL(std::string strFileName, ProgressMonitor* pMonitor)
 	{
-		return m_pDoc->read_sdl(strFileName.c_str());
+		error::code code = m_pDoc->read_sdl(strFileName.c_str(), pMonitor);
+
+		if (code & error::ok)
+		{
+			code = m_pView->LoadTextures(pMonitor);
+		}
+
+		pMonitor->done();
+		return code;
 	}
 
-	error::code WriteSDL(std::string strFileName)
+	error::code WriteSDL(std::string strFileName, ProgressMonitor* pMonitor)
 	{
-		return m_pDoc->write_sdl(strFileName.c_str());
+		error::code code = m_pDoc->write_sdl(strFileName.c_str(), pMonitor);
+	//	return m_pDoc->write_blockdata((strFileName + ".block").c_str());
+		pMonitor->done();
+		return code;
 	}
+
+	class ReadSDLThread
+	{
+	public:
+		static PSDLDocTemplate* pDocTmpl;
+		static std::string strFileName;
+
+		static unsigned _stdcall Run(void* pArgs)
+		{
+			return pDocTmpl->ReadSDL(strFileName.c_str(), static_cast<ProgressMonitor*>(pArgs));
+		}
+	};
+
+	class WriteSDLThread
+	{
+	public:
+		static PSDLDocTemplate* pDocTmpl;
+		static std::string strFileName;
+
+		static unsigned _stdcall Run(void* pArgs)
+		{
+			return pDocTmpl->WriteSDL(strFileName.c_str(), static_cast<ProgressMonitor*>(pArgs));
+		}
+	};
 
 	error::code UnloadTextures(HDC hDC, HGLRC hRC)
 	{
 		return m_pView->UnloadTextures(hDC, hRC);
 	}
 
-	error::code LoadTextures(HDC hDC, HGLRC hRC, notify_func callbackFunc = default_callback)
+	error::code LoadTextures(HDC hDC, HGLRC hRC, ProgressMonitor* pMonitor = NULL)
 	{
-		return m_pView->LoadTextures(hDC, hRC, callbackFunc);
+		return m_pView->LoadTextures(hDC, hRC, pMonitor);
 	}
 
-	static unsigned _stdcall _LoadTextures(void* pThreadData)
+	error::code LoadDocument(void** pDoc, std::string strFileName, ProgressMonitor* pMonitor)
 	{
-		ThreadData* pData = static_cast<ThreadData*>(pThreadData);
+	//	error::code code = baseClass::LoadDocument(pDoc, strFileName, pMonitor);
 
-		if (GLParams* pParams = static_cast<GLParams*>(pData->pParams))
+		*pDoc = new psdl();
+
+		error::code code = static_cast<psdl*>(*pDoc)->read_file(strFileName.c_str(), pMonitor);
+
+		if (code & error::ok)
 		{
-			return static_cast<PSDLDocTemplate*>(pParams->pDocTmpl)->LoadTextures(pParams->hDC, pParams->hRC, pData->callbackFunc);
+			SetDocument(*pDoc, strFileName);
+			SetCurrentDirectory(GetPathName().c_str()); // API function
+			code = m_pView->LoadTextures(pMonitor);
 		}
 
-		return error::failure;
+		pMonitor->done();
+
+		return code;
 	}
 
 	// --- Document Operations ---
@@ -127,7 +175,7 @@ public:
 
 	// Do these belong here?
 
-	void RotateVertex(psdl::vertex *vTarget, psdl::vertex vOrigin, double dAngle)
+	void RotateVertex(Vertex *vTarget, Vertex vOrigin, double dAngle)
 	{
 		float fDx = vTarget->x - vOrigin.x;
 		float fDz = vTarget->z - vOrigin.z;
@@ -138,7 +186,7 @@ public:
 		vTarget->z = vOrigin.z + fDx * s + fDz * c;
 	}
 
-	void MoveVertex(psdl::vertex *vTarget, psdl::vertex vOffset)
+	void MoveVertex(Vertex *vTarget, Vertex vOffset)
 	{
 		vTarget->x += vOffset.x;
 		vTarget->y += vOffset.y;
@@ -154,7 +202,7 @@ public:
 				return aLookup[i].to;
 		}
 
-		psdl::vertex vCopy(*m_pDoc->get_vertex(nFrom));
+		Vertex vCopy(*m_pDoc->get_vertex(nFrom));
 
 		unsigned short nTo = m_pDoc->add_vertex(vCopy);
 
@@ -165,7 +213,7 @@ public:
 		return nTo;
 	}
 
-	unsigned short CopyVertex(unsigned short nFrom, psdl::vertex vOffset, std::vector<vertexMap>& aLookup)
+	unsigned short CopyVertex(unsigned short nFrom, Vertex vOffset, std::vector<vertexMap>& aLookup)
 	{
 		for (size_t i = 0; i < aLookup.size(); i++)
 		{
@@ -174,9 +222,9 @@ public:
 				return aLookup[i].to;
 		}
 
-		psdl::vertex vCopy(*m_pDoc->get_vertex(nFrom));
+		Vertex vCopy(*m_pDoc->get_vertex(nFrom));
 
-		psdl::vertex vFixed(-940.3245f, 0, 1349.235f);
+		Vertex vFixed(-940.3245f, 0, 1349.235f);
 		RotateVertex(&vCopy, vFixed, PI);
 
 		vCopy.x += vOffset.x;

@@ -13,6 +13,12 @@ typedef struct
 }
 triangle;
 
+// What a mess :-/
+PSDLDocTemplate* PSDLDocTemplate::ReadSDLThread::pDocTmpl;
+PSDLDocTemplate* PSDLDocTemplate::WriteSDLThread::pDocTmpl;
+string PSDLDocTemplate::ReadSDLThread::strFileName;
+string PSDLDocTemplate::WriteSDLThread::strFileName;
+
 error::code PSDLDocTemplate::Read3DS(std::string strFileName)
 {/*
 	ifstream f(strFileName.c_str(), ios::in | ios::binary);
